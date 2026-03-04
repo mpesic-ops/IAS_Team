@@ -27,7 +27,8 @@
   const ALLOWED_EMAILS = [
     "mpesic@gmail.com",
     "rmarusic@gmail.com",
-    "ttopolovac@gmail.com"
+    "ttopolovac@gmail.com",
+    "lolchina@gmail.com"
   ];
   // ================================================================
 
@@ -102,14 +103,15 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; font-size: 13px; }
 #syncStatus.synced  { background:#d1fae5;color:#065f46;border:1px solid #6ee7b7; }
 #syncStatus.error   { background:#fee2e2;color:#dc2626;border:1px solid #fca5a5; }
 
-.top-bar { display:flex;align-items:center;gap:10px;background:#1a56a0;color:white;padding:10px 14px;flex-wrap:wrap; }
-.top-bar h1 { font-size:15px;font-weight:bold; }
-.top-bar select { padding:4px 6px;border-radius:4px;border:none;font-size:12px; }
-.top-bar button { padding:5px 10px;border-radius:4px;border:none;font-size:11px;cursor:pointer;background:#f0f9ff;color:#1a56a0;font-weight:bold; }
+.top-bar { display:flex;align-items:center;gap:10px;background:#1a56a0;color:white;padding:0 14px;min-height:46px;flex-wrap:nowrap; }
+.top-bar h1 { font-size:15px;font-weight:bold;white-space:nowrap;line-height:1; }
+.top-bar select { padding:4px 6px;border-radius:4px;border:none;font-size:12px;height:28px; }
+.top-bar button { padding:0 10px;border-radius:4px;border:none;font-size:11px;cursor:pointer;background:#f0f9ff;color:#1a56a0;font-weight:bold;height:28px;white-space:nowrap; }
 .top-bar button:hover { background:#e0f2fe; }
 
 .status-bars { display:flex;gap:10px;padding:10px 12px;flex-wrap:wrap; }
-.avail-block { flex:1;min-width:180px;background:white;border-radius:12px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);border-top:4px solid #1a56a0; }
+.status-bars-wrap { padding:0 12px; }
+.avail-block { flex:0 0 auto;width:240px;background:white;border-radius:12px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);border-top:4px solid #1a56a0; }
 .avail-block.tomorrow { border-top-color:#f59e0b; }
 .avail-header { font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f3f4f6; }
 .avail-rows { display:flex;flex-direction:column;gap:6px; }
@@ -235,7 +237,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 
 @media (max-width:640px) {
   .status-bars { gap:6px;padding:6px 8px; }
-  .avail-block { min-width:140px;padding:10px 12px; }
+  .avail-block { width:auto;flex:1;min-width:140px;padding:10px 12px; }
   .avail-num { font-size:18px; }
   .floorplan-container { flex-direction:column; }
   .room { width:100% !important; }
@@ -299,7 +301,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 </div>
 
 <!-- STATUS: dva velika bloka danas/sutra -->
-<div class="status-bars">
+<div class="status-bars-wrap"><div class="status-bars" style="max-width:510px;">
   <div class="avail-block" id="block-today">
     <div class="avail-header">Slobodna mjesta danas</div>
     <div class="avail-rows">
@@ -319,8 +321,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <span id="dm-taken" style="display:none"></span><span id="pm-taken" style="display:none"></span>
 <span id="lbl-desk-tom" style="display:none"></span><span id="lbl-park-tom" style="display:none"></span>
 <span id="card-desk-today" style="display:none"></span><span id="card-park-today" style="display:none"></span>
-
-<div class="main-tabs">
+</div><!-- end status-bars-wrap -->
 
 <div class="main-tabs">
   <button class="main-tab active" onclick="showMainTab('floorplan')">🗺️ Tlocrt</button>
@@ -347,7 +348,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   <div class="floorplan-container">
 
     <!-- SOBA 3C -->
-    <div class="room room-3c" style="width:296px;">
+    <div class="room room-3c" style="width:306px;">
       <div class="room-header">🏢 Soba 3C</div>
       <div class="room-body">
         <!--
@@ -366,45 +367,45 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
             sredina = (225+263)/2 = 244 → ulaz y = 244-18=226, h=36
           Donji rub: 336+30+12=378 → viewBox h=378
         -->
-        <svg class="floor-svg" width="280" height="430" viewBox="0 0 280 430">
-          <rect x="1" y="1" width="278" height="428" rx="5" fill="#fafbfc" stroke="#cbd5e1" stroke-width="1.5"/>
+        <svg class="floor-svg" width="290" height="430" viewBox="0 0 290 430">
+          <rect x="1" y="1" width="288" height="428" rx="5" fill="#fafbfc" stroke="#cbd5e1" stroke-width="1.5"/>
           <!-- Terasa -->
-          <rect x="8" y="6" width="262" height="20" rx="3" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1"/>
-          <text x="139" y="20" text-anchor="middle" font-size="9" fill="#0369a1" font-weight="bold" font-family="Arial">Terasa</text>
+          <rect x="8" y="6" width="272" height="20" rx="3" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1"/>
+          <text x="144" y="20" text-anchor="middle" font-size="9" fill="#0369a1" font-weight="bold" font-family="Arial">Terasa</text>
           <!-- Ulaz — centriran na sredinu između stola 13 i 14 -->
           <rect x="1" y="247" width="15" height="46" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1"/>
           <text x="8" y="276" text-anchor="middle" font-size="9" fill="#92400e" font-weight="bold" font-family="Arial" transform="rotate(-90,8,276)">Ulaz</text>
 
           <!-- GRUPA A -->
-          <g class="desk-btn" onclick="selectDesk(0)"><rect id="dr-0" x="18" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-0" x="44" y="46" text-anchor="middle" class="dnum">1</text><text id="dp-0" x="44" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(1)"><rect id="dr-1" x="96" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-1" x="104" y="46" text-anchor="middle" class="dnum">2</text><text id="dp-1" x="104" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(3)"><rect id="dr-3" x="18" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-3" x="44" y="84" text-anchor="middle" class="dnum">4</text><text id="dp-3" x="44" y="96" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(4)"><rect id="dr-4" x="96" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-4" x="104" y="84" text-anchor="middle" class="dnum">5</text><text id="dp-4" x="104" y="96" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(2)"><rect id="dr-2" x="174" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-2" x="191" y="46" text-anchor="middle" class="dnum">3</text><text id="dp-2" x="191" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(5)"><rect id="dr-5" x="174" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-5" x="191" y="84" text-anchor="middle" class="dnum">6</text><text id="dp-5" x="191" y="96" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="120" x2="264" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(0)"><rect id="dr-0" x="18" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-0" x="53" y="48" text-anchor="middle" class="dnum">1</text><text id="dp-0" x="53" y="61" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(1)"><rect id="dr-1" x="96" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-1" x="131" y="48" text-anchor="middle" class="dnum">2</text><text id="dp-1" x="131" y="61" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(3)"><rect id="dr-3" x="18" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-3" x="53" y="92" text-anchor="middle" class="dnum">4</text><text id="dp-3" x="53" y="105" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(4)"><rect id="dr-4" x="96" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-4" x="131" y="92" text-anchor="middle" class="dnum">5</text><text id="dp-4" x="131" y="105" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(2)"><rect id="dr-2" x="184" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-2" x="219" y="48" text-anchor="middle" class="dnum">3</text><text id="dp-2" x="219" y="61" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(5)"><rect id="dr-5" x="184" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-5" x="219" y="92" text-anchor="middle" class="dnum">6</text><text id="dp-5" x="219" y="105" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="120" x2="274" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA C -->
-          <g class="desk-btn" onclick="selectDesk(6)"><rect id="dr-6" x="18" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-6" x="44" y="134" text-anchor="middle" class="dnum">7</text><text id="dp-6" x="44" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(7)"><rect id="dr-7" x="96" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-7" x="104" y="134" text-anchor="middle" class="dnum">8</text><text id="dp-7" x="104" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(9)"><rect id="dr-9" x="18" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-9" x="44" y="172" text-anchor="middle" class="dnum">10</text><text id="dp-9" x="44" y="184" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(10)"><rect id="dr-10" x="96" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-10" x="104" y="172" text-anchor="middle" class="dnum">11</text><text id="dp-10" x="104" y="184" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(8)"><rect id="dr-8" x="174" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-8" x="191" y="134" text-anchor="middle" class="dnum">9</text><text id="dp-8" x="191" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(11)"><rect id="dr-11" x="174" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-11" x="191" y="172" text-anchor="middle" class="dnum">12</text><text id="dp-11" x="191" y="184" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="218" x2="264" y2="218" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(6)"><rect id="dr-6" x="18" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-6" x="53" y="146" text-anchor="middle" class="dnum">7</text><text id="dp-6" x="53" y="159" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(7)"><rect id="dr-7" x="96" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-7" x="131" y="146" text-anchor="middle" class="dnum">8</text><text id="dp-7" x="131" y="159" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(9)"><rect id="dr-9" x="18" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-9" x="53" y="190" text-anchor="middle" class="dnum">10</text><text id="dp-9" x="53" y="203" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(10)"><rect id="dr-10" x="96" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-10" x="131" y="190" text-anchor="middle" class="dnum">11</text><text id="dp-10" x="131" y="203" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(8)"><rect id="dr-8" x="184" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-8" x="219" y="146" text-anchor="middle" class="dnum">9</text><text id="dp-8" x="219" y="159" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(11)"><rect id="dr-11" x="184" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-11" x="219" y="190" text-anchor="middle" class="dnum">12</text><text id="dp-11" x="219" y="203" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="218" x2="274" y2="218" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA E — 13 i 14 desno, ulaz centriran na njih -->
-          <g class="desk-btn" onclick="selectDesk(12)"><rect id="dr-12" x="174" y="230" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-12" x="191" y="222" text-anchor="middle" class="dnum">13</text><text id="dp-12" x="191" y="234" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(13)"><rect id="dr-13" x="174" y="274" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-13" x="191" y="260" text-anchor="middle" class="dnum">14</text><text id="dp-13" x="191" y="272" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="316" x2="264" y2="316" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(12)"><rect id="dr-12" x="184" y="230" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-12" x="219" y="244" text-anchor="middle" class="dnum">13</text><text id="dp-12" x="219" y="257" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(13)"><rect id="dr-13" x="184" y="274" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-13" x="219" y="288" text-anchor="middle" class="dnum">14</text><text id="dp-13" x="219" y="301" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="316" x2="274" y2="316" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA F -->
-          <g class="desk-btn" onclick="selectDesk(14)"><rect id="dr-14" x="18" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-14" x="44" y="310" text-anchor="middle" class="dnum">15</text><text id="dp-14" x="44" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(15)"><rect id="dr-15" x="96" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-15" x="104" y="310" text-anchor="middle" class="dnum">16</text><text id="dp-15" x="104" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(17)"><rect id="dr-17" x="18" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-17" x="44" y="348" text-anchor="middle" class="dnum">18</text><text id="dp-17" x="44" y="360" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(18)"><rect id="dr-18" x="96" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-18" x="104" y="348" text-anchor="middle" class="dnum">19</text><text id="dp-18" x="104" y="360" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(16)"><rect id="dr-16" x="174" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-16" x="191" y="310" text-anchor="middle" class="dnum">17</text><text id="dp-16" x="191" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(19)"><rect id="dr-19" x="174" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-19" x="191" y="348" text-anchor="middle" class="dnum">20</text><text id="dp-19" x="191" y="360" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(14)"><rect id="dr-14" x="18" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-14" x="53" y="342" text-anchor="middle" class="dnum">15</text><text id="dp-14" x="53" y="355" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(15)"><rect id="dr-15" x="96" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-15" x="131" y="342" text-anchor="middle" class="dnum">16</text><text id="dp-15" x="131" y="355" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(17)"><rect id="dr-17" x="18" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-17" x="53" y="386" text-anchor="middle" class="dnum">18</text><text id="dp-17" x="53" y="399" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(18)"><rect id="dr-18" x="96" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-18" x="131" y="386" text-anchor="middle" class="dnum">19</text><text id="dp-18" x="131" y="399" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(16)"><rect id="dr-16" x="184" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-16" x="219" y="342" text-anchor="middle" class="dnum">17</text><text id="dp-16" x="219" y="355" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(19)"><rect id="dr-19" x="184" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-19" x="219" y="386" text-anchor="middle" class="dnum">20</text><text id="dp-19" x="219" y="399" text-anchor="middle" class="dperson"></text></g>
           <text x="14" y="425" font-size="9" fill="#d1d5db" font-family="Arial">3C</text>
         </svg>
       </div>
@@ -425,9 +426,9 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
         <div class="room-body">
           <svg class="floor-svg" width="168" height="100" viewBox="0 0 168 100">
             <rect x="1" y="1" width="166" height="98" rx="5" fill="#f0fdf4" stroke="#6ee7b7" stroke-width="1.5"/>
-            <g class="desk-btn" onclick="selectDesk(20)"><rect id="dr-20" x="10" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-20" x="36" y="22" text-anchor="middle" class="dnum">3D-1</text><text id="dp-20" x="36" y="34" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectDesk(21)"><rect id="dr-21" x="88" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-21" x="96" y="22" text-anchor="middle" class="dnum">3D-2</text><text id="dp-21" x="96" y="34" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectDesk(22)"><rect id="dr-22" x="10" y="54" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-22" x="36" y="60" text-anchor="middle" class="dnum">3D-3</text><text id="dp-22" x="36" y="72" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(20)"><rect id="dr-20" x="10" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-20" x="45" y="24" text-anchor="middle" class="dnum">3D-1</text><text id="dp-20" x="45" y="37" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(21)"><rect id="dr-21" x="88" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-21" x="123" y="24" text-anchor="middle" class="dnum">3D-2</text><text id="dp-21" x="123" y="37" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(22)"><rect id="dr-22" x="10" y="54" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-22" x="45" y="68" text-anchor="middle" class="dnum">3D-3</text><text id="dp-22" x="45" y="81" text-anchor="middle" class="dperson"></text></g>
             <text x="158" y="95" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">3D</text>
           </svg>
         </div>
@@ -444,14 +445,14 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
         <div class="room-body">
           <svg class="floor-svg" width="168" height="192" viewBox="0 0 168 192">
             <rect x="1" y="1" width="166" height="190" rx="5" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1.5"/>
-            <g class="desk-btn" onclick="selectPark(0)"><rect id="pr-0" x="10" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-0" x="36" y="22"  text-anchor="middle" class="pnum">P1</text><text id="pp-0" x="36" y="34"  text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(1)"><rect id="pr-1" x="70" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-1" x="96" y="22"  text-anchor="middle" class="pnum">P2</text><text id="pp-1" x="96" y="34"  text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(2)"><rect id="pr-2" x="10" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-2" x="36" y="60"  text-anchor="middle" class="pnum">P3</text><text id="pp-2" x="36" y="72"  text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(3)"><rect id="pr-3" x="70" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-3" x="96" y="60"  text-anchor="middle" class="pnum">P4</text><text id="pp-3" x="96" y="72"  text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(4)"><rect id="pr-4" x="10" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-4" x="36" y="98"  text-anchor="middle" class="pnum">P5</text><text id="pp-4" x="36" y="110" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(5)"><rect id="pr-5" x="70" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-5" x="96" y="98"  text-anchor="middle" class="pnum">P6</text><text id="pp-5" x="96" y="110" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(6)"><rect id="pr-6" x="10" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-6" x="36" y="136" text-anchor="middle" class="pnum">P7</text><text id="pp-6" x="36" y="148" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(7)"><rect id="pr-7" x="88" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-7" x="96" y="136" text-anchor="middle" class="pnum">P8</text><text id="pp-7" x="96" y="148" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(0)"><rect id="pr-0" x="10" y="10" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-0" x="45" y="24"  text-anchor="middle" class="pnum">P1</text><text id="pp-0" x="45" y="37"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(1)"><rect id="pr-1" x="88" y="10" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-1" x="123" y="24"  text-anchor="middle" class="pnum">P2</text><text id="pp-1" x="123" y="37"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(2)"><rect id="pr-2" x="10" y="54" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-2" x="45" y="68"  text-anchor="middle" class="pnum">P3</text><text id="pp-2" x="45" y="81"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(3)"><rect id="pr-3" x="88" y="54" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-3" x="123" y="68"  text-anchor="middle" class="pnum">P4</text><text id="pp-3" x="123" y="81"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(4)"><rect id="pr-4" x="10" y="98" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-4" x="45" y="112"  text-anchor="middle" class="pnum">P5</text><text id="pp-4" x="45" y="125" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(5)"><rect id="pr-5" x="88" y="98" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-5" x="123" y="112"  text-anchor="middle" class="pnum">P6</text><text id="pp-5" x="123" y="125" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(6)"><rect id="pr-6" x="10" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-6" x="45" y="156" text-anchor="middle" class="pnum">P7</text><text id="pp-6" x="45" y="169" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(7)"><rect id="pr-7" x="88" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-7" x="123" y="156" text-anchor="middle" class="pnum">P8</text><text id="pp-7" x="123" y="169" text-anchor="middle" class="dperson"></text></g>
             <text x="158" y="187" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">P</text>
           </svg>
         </div>
