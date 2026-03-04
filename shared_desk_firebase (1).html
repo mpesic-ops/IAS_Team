@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shared Desk</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+// ================================================================
+  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA IZ KORAKA 5:
+ // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+  authDomain: "ias-shared-desk.firebaseapp.com",
+  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ias-shared-desk",
+  storageBucket: "ias-shared-desk.firebasestorage.app",
+  messagingSenderId: "752309546769",
+  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+};
+
+  // ================================================================
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  window._fbSet    = (path, value) => set(ref(db, path), value);
+  window._fbListen = (path, cb)    => onValue(ref(db, path), snap => cb(snap.val()));
+  window._fbReady  = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f2f5; font-size: 13px; }
+
+#connectingOverlay { position:fixed;inset:0;background:rgba(255,255,255,.95);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px; }
+#connectingOverlay.hidden { display:none; }
+.spinner { width:38px;height:38px;border:3px solid #e5e7eb;border-top-color:#1a56a0;border-radius:50%;animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#connectingOverlay p { font-size:14px;color:#374151;font-weight:600; }
+#connectingOverlay small { font-size:11px;color:#9ca3af;text-align:center;max-width:300px; }
+
+#syncStatus { position:fixed;bottom:12px;right:12px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;z-index:900;pointer-events:none;transition:all .3s; }
+#syncStatus.syncing { background:#fef3c7;color:#92400e;border:1px solid #fde68a; }
+#syncStatus.synced  { background:#d1fae5;color:#065f46;border:1px solid #6ee7b7; }
+#syncStatus.error   { background:#fee2e2;color:#dc2626;border:1px solid #fca5a5; }
+
+.top-bar { display:flex;align-items:center;gap:10px;background:#1a56a0;color:white;padding:10px 14px;flex-wrap:wrap; }
+.top-bar h1 { font-size:15px;font-weight:bold; }
+.top-bar select { padding:4px 6px;border-radius:4px;border:none;font-size:12px; }
+.top-bar button { padding:5px 10px;border-radius:4px;border:none;font-size:11px;cursor:pointer;background:#f0f9ff;color:#1a56a0;font-weight:bold; }
+.top-bar button:hover { background:#e0f2fe; }
+
+/* STATUS — kompaktan, redoslijed: stolovi danas, parking danas, stolovi sutra, parking sutra */
+.status-bars { display:flex;gap:5px;padding:6px 12px;flex-wrap:wrap; }
+.stat-card { display:flex;align-items:center;gap:8px;background:white;border-radius:5px;padding:5px 10px;box-shadow:0 1px 3px rgba(0,0,0,.1);flex:1;min-width:125px;border-left:4px solid #22c55e; }
+.stat-card.park-today    { border-left-color:#065f46; }
+.stat-card.desk-tomorrow { border-left-color:#f59e0b; }
+.stat-card.park-tomorrow { border-left-color:#92400e; }
+.stat-title { font-weight:bold;font-size:10px;color:#555;white-space:nowrap;flex-shrink:0; }
+.stat-counts { display:flex;gap:6px; }
+.stat-item { display:flex;align-items:center;gap:3px;font-size:11px; }
+.stat-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.dot-green { background:#22c55e; }
+.dot-red   { background:#ef4444; }
+.stat-num  { font-weight:bold;font-size:12px;color:#1f2937; }
+
+.main-tabs { display:flex;background:white;border-bottom:2px solid #e5e7eb;padding:0 12px; }
+.main-tab { padding:9px 16px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap; }
+.main-tab.active { color:#1a56a0;border-bottom-color:#1a56a0; }
+
+/* TLOCRT */
+.floorplan-wrap { padding:12px; }
+.floor-day-toggle { display:flex;justify-content:center;gap:0;margin-bottom:8px; }
+.day-btn { padding:6px 22px;border:1.5px solid #1a56a0;background:white;color:#1a56a0;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s; }
+.day-btn:first-child { border-radius:6px 0 0 6px;border-right:none; }
+.day-btn:last-child  { border-radius:0 6px 6px 0; }
+.day-btn.active { background:#1a56a0;color:white; }
+.day-btn:hover:not(.active) { background:#eff6ff; }
+.floor-date-label { text-align:center;font-size:11px;color:#6b7280;margin-bottom:10px;font-weight:600; }
+.floorplan-container { display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start; }
+
+.room { background:white;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,.1);overflow:hidden;flex-shrink:0; }
+.room-header { color:white;padding:6px 12px;font-size:12px;font-weight:bold; }
+.room-3c   .room-header { background:#1a56a0; }
+.room-3d   .room-header { background:#065f46; }
+.room-park .room-header { background:#7c3aed; }
+.room-body { padding:10px; }
+.floor-svg { display:block; }
+
+/* SVG stilovi — unificirane kućice */
+.desk-btn { cursor:pointer; }
+.desk-btn:hover .dbox { opacity:.82; }
+.dbox { rx:3; }
+.desk-bg-free  { fill:#eff6ff;stroke:#93c5fd;stroke-width:1.5; }
+.desk-bg-taken { fill:#dcfce7;stroke:#4ade80;stroke-width:1.5; }
+.park-bg-free  { fill:#f5f3ff;stroke:#c4b5fd;stroke-width:1.5; }
+.park-bg-taken { fill:#dcfce7;stroke:#4ade80;stroke-width:1.5; }
+.dnum { font-size:9px;font-weight:bold;fill:#1e40af;font-family:Arial,sans-serif; }
+.dnum.taken { fill:#15803d; }
+.pnum { font-size:9px;font-weight:bold;fill:#5b21b6;font-family:Arial,sans-serif; }
+.pnum.taken { fill:#15803d; }
+.dperson { font-size:7px;fill:#374151;font-family:Arial,sans-serif; }
+
+.floor-legend { display:flex;gap:12px;padding:6px 12px 8px;font-size:11px;color:#6b7280;flex-wrap:wrap; }
+.legend-item { display:flex;align-items:center;gap:5px; }
+.legend-dot { width:12px;height:12px;border-radius:2px;flex-shrink:0; }
+
+/* TABLICA */
+.table-section { padding:10px 12px; }
+.section-label { font-weight:bold;font-size:12px;color:#374151;background:#f3f4f6;padding:4px 10px;border:1px solid #d1d5db;border-bottom:none;border-radius:6px 6px 0 0;display:inline-block; }
+.section-label.park { background:#ecfdf5;border-color:#6ee7b7;color:#065f46; }
+.table-wrap { overflow-x:auto;border-radius:0 8px 8px 8px;box-shadow:0 1px 6px rgba(0,0,0,.12);margin-bottom:12px; }
+table { border-collapse:collapse;background:white; }
+th,td { border:1px solid #d1d5db;text-align:center;white-space:nowrap; }
+th.corner { background:#374151;min-width:110px;position:sticky;left:0;z-index:3; }
+th.day-header { background:#1a56a0;color:white;font-size:10px;padding:4px 3px;min-width:72px; }
+th.day-header.today-col { background:#92400e !important; }
+th.park-header { background:#065f46;color:white;font-size:10px;padding:4px 3px;min-width:72px; }
+th.park-header.today-col { background:#92400e !important; }
+tr.date-row td { background:#e8f0fe;font-size:9px;color:#444;padding:2px 3px;font-weight:600; }
+tr.date-row td.today-col { background:#fef08a !important; }
+tr.date-row td.corner-date { background:#374151;color:white;padding:2px 8px;position:sticky;left:0;z-index:2;font-size:10px; }
+tr.date-row td.park-date { background:#d1fae5; }
+tr.date-row td.park-date.today-col { background:#fef08a !important; }
+td.row-label { background:#f9fafb;font-weight:600;font-size:11px;padding:3px 8px;text-align:left;color:#1f2937;position:sticky;left:0;z-index:1;border-right:2px solid #9ca3af;min-width:110px; }
+td.row-label.park-label { background:#ecfdf5;border-right-color:#6ee7b7; }
+td.cell { padding:1px;min-width:72px;height:26px; }
+td.cell.today-col { background:#fefce8; }
+td.cell select { width:100%;height:100%;border:none;background:transparent;text-align:center;font-size:10px;padding:1px;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;text-align-last:center; }
+td.cell select:focus { background:#dbeafe; }
+td.cell select.reserved { background:#dcfce7;color:#15803d;font-weight:600; }
+td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600; }
+
+/* MODALI */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:12px; }
+.modal-overlay.open { display:flex; }
+.modal { background:white;border-radius:10px;padding:18px;width:100%;max-width:460px;box-shadow:0 8px 30px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto; }
+.modal h2 { font-size:14px;margin-bottom:12px;color:#1a56a0; }
+.modal-footer { display:flex;gap:8px;justify-content:flex-end;margin-top:12px;border-top:1px solid #f3f4f6;padding-top:10px; }
+.btn { padding:6px 14px;border-radius:5px;border:none;font-size:12px;cursor:pointer;font-weight:600; }
+.btn-primary { background:#1a56a0;color:white; }
+.btn-secondary { background:#e5e7eb;color:#374151; }
+.tab-row { display:flex;margin-bottom:12px;border-bottom:2px solid #e5e7eb;overflow-x:auto; }
+.tab-btn { padding:6px 12px;border:none;background:none;cursor:pointer;font-size:11px;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:600;white-space:nowrap; }
+.tab-btn.active { color:#1a56a0;border-bottom-color:#1a56a0; }
+.tab-content { display:none; } .tab-content.active { display:block; }
+.add-single-row { display:flex;gap:6px;margin-bottom:10px; }
+.add-single-row input { flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:12px; }
+.add-single-row button { padding:5px 10px;background:#1a56a0;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold; }
+.items-list { display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;margin-bottom:6px; }
+.list-item { display:flex;align-items:center;gap:5px; }
+.list-item .item-idx { font-size:10px;color:#9ca3af;width:20px;text-align:right;flex-shrink:0; }
+.list-item input { flex:1;padding:4px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px; }
+.del-btn { background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:3px 7px;cursor:pointer;font-size:11px;flex-shrink:0; }
+.bulk-box { background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:8px; }
+.bulk-box label { font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:5px; }
+.bulk-box textarea { width:100%;height:90px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;padding:6px;resize:vertical;font-family:Arial,sans-serif; }
+.bulk-hint { font-size:10px;color:#94a3b8;margin-top:4px; }
+.bulk-actions { display:flex;gap:6px;margin-top:6px;flex-wrap:wrap; }
+.bulk-add-btn     { padding:5px 10px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600; }
+.bulk-replace-btn { padding:5px 10px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600; }
+.prefix-box { background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px;margin-bottom:10px; }
+.prefix-box label { font-size:11px;font-weight:600;color:#92400e;display:block;margin-bottom:6px; }
+.prefix-row { display:flex;gap:6px;align-items:center;flex-wrap:wrap; }
+.prefix-row input { padding:5px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;flex:1;min-width:100px; }
+.prefix-row span { font-size:11px;color:#6b7280; }
+.prefix-row button { padding:5px 10px;background:#d97706;color:white;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600; }
+.add-new-box { background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px; }
+.add-new-box label { font-size:11px;font-weight:600;color:#166534;display:block;margin-bottom:6px; }
+.add-new-row { display:flex;gap:6px; }
+.add-new-row input { flex:1;padding:5px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px; }
+.add-new-row button { padding:5px 10px;background:#059669;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold; }
+.add-hint { font-size:10px;color:#6b7280;margin-top:5px; }
+.info { font-size:11px;color:#6b7280;padding:4px 12px 10px; }
+
+@media (max-width:640px) {
+  .status-bars { gap:4px;padding:5px 8px; }
+  .stat-card { min-width:110px;padding:4px 8px; }
+  .floorplan-container { flex-direction:column; }
+  .room { width:100% !important; }
+  .floor-svg { width:100% !important;height:auto !important; }
+  td.cell { min-width:60px; }
+}
+</style>
+</head>
+<body>
+
+<div id="connectingOverlay">
+  <div class="spinner"></div>
+  <p>Spajanje na bazu podataka...</p>
+  <small>Ako ovo traje dulje od 15 sekundi, provjerite firebaseConfig u HTML datoteci.</small>
+</div>
+<div id="syncStatus" class="synced">✓ Sinkronizirano</div>
+
+<div class="top-bar">
+  <h1>📋 Shared Desk</h1>
+  <div><label>Mj: </label><select id="monthSel" onchange="rebuild()"></select></div>
+  <div><label>God: </label><select id="yearSel" onchange="rebuild()"></select></div>
+  <button onclick="openModal('people')">👥 Osobe</button>
+  <button onclick="openModal('desks')">🪑 Stolovi</button>
+  <button onclick="openModal('parking')">🚗 Parking</button>
+</div>
+
+<!-- STATUS: stolovi danas | parking danas | stolovi sutra | parking sutra -->
+<div class="status-bars">
+  <div class="stat-card" id="card-desk-today">
+    <div class="stat-title">🪑 Stolovi danas</div>
+    <div class="stat-counts">
+      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="dt-free" class="stat-num">-</span>&nbsp;sl.</div>
+      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="dt-taken" class="stat-num">-</span>&nbsp;zau.</div>
+    </div>
+  </div>
+  <div class="stat-card park-today" id="card-park-today">
+    <div class="stat-title">🚗 Parking danas</div>
+    <div class="stat-counts">
+      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="pt-free" class="stat-num">-</span>&nbsp;sl.</div>
+      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="pt-taken" class="stat-num">-</span>&nbsp;zau.</div>
+    </div>
+  </div>
+  <div class="stat-card desk-tomorrow" id="card-desk-tomorrow">
+    <div class="stat-title" id="lbl-desk-tom">🪑 Stolovi sutra</div>
+    <div class="stat-counts">
+      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="dm-free" class="stat-num">-</span>&nbsp;sl.</div>
+      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="dm-taken" class="stat-num">-</span>&nbsp;zau.</div>
+    </div>
+  </div>
+  <div class="stat-card park-tomorrow" id="card-park-tomorrow">
+    <div class="stat-title" id="lbl-park-tom">🚗 Parking sutra</div>
+    <div class="stat-counts">
+      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="pm-free" class="stat-num">-</span>&nbsp;sl.</div>
+      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="pm-taken" class="stat-num">-</span>&nbsp;zau.</div>
+    </div>
+  </div>
+</div>
+
+<div class="main-tabs">
+  <button class="main-tab active" onclick="showMainTab('floorplan')">🗺️ Tlocrt</button>
+  <button class="main-tab" onclick="showMainTab('table')">📅 Tablica</button>
+</div>
+
+<!-- ===== TLOCRT ===== -->
+<div id="tab-floorplan" class="floorplan-wrap">
+
+  <!-- Danas / Sutra toggle -->
+  <div class="floor-day-toggle">
+    <button class="day-btn active" id="btn-today"    onclick="setFloorDay('today')">📅 Danas</button>
+    <button class="day-btn"        id="btn-tomorrow" onclick="setFloorDay('tomorrow')">📅 Sutra</button>
+  </div>
+  <div class="floor-date-label" id="floorDateLabel"></div>
+
+  <!--
+    SVG dimenzije kućice SVUDA: w=52, h=30, rx=3
+    Razmak između kućica: 8px horizontalno, 8px vertikalno
+    Lijeva kolona 3C: x=18, x=78  (18+52+8=78)
+    Desna kolona 3C:  x=162, w=58 (malo šira za vizualni balans desne strane)
+    Ulaz: centriran između stola 13 (top=y13) i 14 (bottom=y14+30), sredina tih dvaju
+  -->
+  <div class="floorplan-container">
+
+    <!-- SOBA 3C -->
+    <div class="room room-3c" style="width:252px;">
+      <div class="room-header">🏢 Soba 3C</div>
+      <div class="room-body">
+        <!--
+          Redovi (y):
+            Terasa: y=6 h=18
+            Grupa A (1,2,4,5 | 3,6): y=34, y=72
+            sep: y=112 → line
+            Grupa C (7,8,10,11 | 9,12): y=122, y=160
+            sep: y=200 → line
+            Grupa E (13,14 desno): y=210, y=248
+            sep: y=288 → line
+            Grupa F (15,16,18,19 | 17,20): y=298, y=336
+
+          Ulaz: između stola 13 (y=210) i 14 (y=248)
+            y13_mid = 210+15=225, y14_mid=248+15=263
+            sredina = (225+263)/2 = 244 → ulaz y = 244-18=226, h=36
+          Donji rub: 336+30+12=378 → viewBox h=378
+        -->
+        <svg class="floor-svg" width="240" height="378" viewBox="0 0 240 378">
+          <rect x="1" y="1" width="238" height="376" rx="5" fill="#fafbfc" stroke="#cbd5e1" stroke-width="1.5"/>
+          <!-- Terasa -->
+          <rect x="8" y="6" width="224" height="18" rx="3" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1"/>
+          <text x="120" y="19" text-anchor="middle" font-size="9" fill="#0369a1" font-weight="bold" font-family="Arial">Terasa</text>
+          <!-- Ulaz — centriran na sredinu između stola 13 i 14 -->
+          <rect x="1" y="226" width="13" height="36" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1"/>
+          <text x="7" y="249" text-anchor="middle" font-size="7" fill="#92400e" font-weight="bold" font-family="Arial" transform="rotate(-90,7,249)">Ulaz</text>
+
+          <!-- GRUPA A -->
+          <g class="desk-btn" onclick="selectDesk(0)"><rect id="dr-0" x="18" y="34" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-0" x="44" y="46" text-anchor="middle" class="dnum">1</text><text id="dp-0" x="44" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(1)"><rect id="dr-1" x="78" y="34" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-1" x="104" y="46" text-anchor="middle" class="dnum">2</text><text id="dp-1" x="104" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(3)"><rect id="dr-3" x="18" y="72" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-3" x="44" y="84" text-anchor="middle" class="dnum">4</text><text id="dp-3" x="44" y="96" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(4)"><rect id="dr-4" x="78" y="72" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-4" x="104" y="84" text-anchor="middle" class="dnum">5</text><text id="dp-4" x="104" y="96" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(2)"><rect id="dr-2" x="162" y="34" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-2" x="191" y="46" text-anchor="middle" class="dnum">3</text><text id="dp-2" x="191" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(5)"><rect id="dr-5" x="162" y="72" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-5" x="191" y="84" text-anchor="middle" class="dnum">6</text><text id="dp-5" x="191" y="96" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="112" x2="224" y2="112" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+
+          <!-- GRUPA C -->
+          <g class="desk-btn" onclick="selectDesk(6)"><rect id="dr-6" x="18" y="122" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-6" x="44" y="134" text-anchor="middle" class="dnum">7</text><text id="dp-6" x="44" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(7)"><rect id="dr-7" x="78" y="122" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-7" x="104" y="134" text-anchor="middle" class="dnum">8</text><text id="dp-7" x="104" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(9)"><rect id="dr-9" x="18" y="160" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-9" x="44" y="172" text-anchor="middle" class="dnum">10</text><text id="dp-9" x="44" y="184" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(10)"><rect id="dr-10" x="78" y="160" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-10" x="104" y="172" text-anchor="middle" class="dnum">11</text><text id="dp-10" x="104" y="184" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(8)"><rect id="dr-8" x="162" y="122" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-8" x="191" y="134" text-anchor="middle" class="dnum">9</text><text id="dp-8" x="191" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(11)"><rect id="dr-11" x="162" y="160" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-11" x="191" y="172" text-anchor="middle" class="dnum">12</text><text id="dp-11" x="191" y="184" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="200" x2="224" y2="200" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+
+          <!-- GRUPA E — 13 i 14 desno, ulaz centriran na njih -->
+          <g class="desk-btn" onclick="selectDesk(12)"><rect id="dr-12" x="162" y="210" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-12" x="191" y="222" text-anchor="middle" class="dnum">13</text><text id="dp-12" x="191" y="234" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(13)"><rect id="dr-13" x="162" y="248" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-13" x="191" y="260" text-anchor="middle" class="dnum">14</text><text id="dp-13" x="191" y="272" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="288" x2="224" y2="288" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+
+          <!-- GRUPA F -->
+          <g class="desk-btn" onclick="selectDesk(14)"><rect id="dr-14" x="18" y="298" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-14" x="44" y="310" text-anchor="middle" class="dnum">15</text><text id="dp-14" x="44" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(15)"><rect id="dr-15" x="78" y="298" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-15" x="104" y="310" text-anchor="middle" class="dnum">16</text><text id="dp-15" x="104" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(17)"><rect id="dr-17" x="18" y="336" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-17" x="44" y="348" text-anchor="middle" class="dnum">18</text><text id="dp-17" x="44" y="360" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(18)"><rect id="dr-18" x="78" y="336" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-18" x="104" y="348" text-anchor="middle" class="dnum">19</text><text id="dp-18" x="104" y="360" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(16)"><rect id="dr-16" x="162" y="298" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-16" x="191" y="310" text-anchor="middle" class="dnum">17</text><text id="dp-16" x="191" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(19)"><rect id="dr-19" x="162" y="336" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-19" x="191" y="348" text-anchor="middle" class="dnum">20</text><text id="dp-19" x="191" y="360" text-anchor="middle" class="dperson"></text></g>
+          <text x="14" y="373" font-size="9" fill="#d1d5db" font-family="Arial">3C</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Desna kolona: 3D + Parking ispod -->
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <!-- SOBA 3D — iste dimenzije kućica 52×30 -->
+      <!--
+        3D-1: x=10 y=10 w=52 h=30
+        3D-2: x=70 y=10 w=52 h=30   (10+52+8=70)
+        3D-3: x=10 y=48 w=52 h=30   (10+30+8=48)
+        viewBox: w=10+52+8+52+10=132, h=10+30+8+30+10=88
+      -->
+      <div class="room room-3d" style="width:152px;">
+        <div class="room-header">🏢 Soba 3D</div>
+        <div class="room-body">
+          <svg class="floor-svg" width="132" height="88" viewBox="0 0 132 88">
+            <rect x="1" y="1" width="130" height="86" rx="5" fill="#f0fdf4" stroke="#6ee7b7" stroke-width="1.5"/>
+            <g class="desk-btn" onclick="selectDesk(20)"><rect id="dr-20" x="10" y="10" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-20" x="36" y="22" text-anchor="middle" class="dnum">3D-1</text><text id="dp-20" x="36" y="34" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(21)"><rect id="dr-21" x="70" y="10" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-21" x="96" y="22" text-anchor="middle" class="dnum">3D-2</text><text id="dp-21" x="96" y="34" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(22)"><rect id="dr-22" x="10" y="48" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-22" x="36" y="60" text-anchor="middle" class="dnum">3D-3</text><text id="dp-22" x="36" y="72" text-anchor="middle" class="dperson"></text></g>
+            <text x="122" y="83" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">3D</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- PARKING — 8 mjesta, 52×30, 2 kolone × 4 reda, iste kao stolovi -->
+      <!--
+        Kolona 1: x=10, Kolona 2: x=70  (10+52+8=70)
+        Red 1: y=10, Red 2: y=48, Red 3: y=86, Red 4: y=124  (gap=8)
+        viewBox: w=10+52+8+52+10=132, h=10+30+8+30+8+30+8+30+10=164
+      -->
+      <div class="room room-park" style="width:152px;">
+        <div class="room-header">🚗 Parking</div>
+        <div class="room-body">
+          <svg class="floor-svg" width="132" height="164" viewBox="0 0 132 164">
+            <rect x="1" y="1" width="130" height="162" rx="5" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1.5"/>
+            <g class="desk-btn" onclick="selectPark(0)"><rect id="pr-0" x="10" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-0" x="36" y="22"  text-anchor="middle" class="pnum">P1</text><text id="pp-0" x="36" y="34"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(1)"><rect id="pr-1" x="70" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-1" x="96" y="22"  text-anchor="middle" class="pnum">P2</text><text id="pp-1" x="96" y="34"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(2)"><rect id="pr-2" x="10" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-2" x="36" y="60"  text-anchor="middle" class="pnum">P3</text><text id="pp-2" x="36" y="72"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(3)"><rect id="pr-3" x="70" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-3" x="96" y="60"  text-anchor="middle" class="pnum">P4</text><text id="pp-3" x="96" y="72"  text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(4)"><rect id="pr-4" x="10" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-4" x="36" y="98"  text-anchor="middle" class="pnum">P5</text><text id="pp-4" x="36" y="110" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(5)"><rect id="pr-5" x="70" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-5" x="96" y="98"  text-anchor="middle" class="pnum">P6</text><text id="pp-5" x="96" y="110" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(6)"><rect id="pr-6" x="10" y="124" width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-6" x="36" y="136" text-anchor="middle" class="pnum">P7</text><text id="pp-6" x="36" y="148" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(7)"><rect id="pr-7" x="70" y="124" width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-7" x="96" y="136" text-anchor="middle" class="pnum">P8</text><text id="pp-7" x="96" y="148" text-anchor="middle" class="dperson"></text></g>
+            <text x="122" y="159" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">P</text>
+          </svg>
+        </div>
+      </div>
+
+    </div><!-- kraj desne kolone -->
+  </div><!-- kraj floorplan-container -->
+
+  <div class="floor-legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#eff6ff;border:1.5px solid #93c5fd;"></div>Slobodan stol</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f5f3ff;border:1.5px solid #c4b5fd;"></div>Slobodan parking</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dcfce7;border:1.5px solid #4ade80;"></div>Zauzeto</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fef08a;border:1.5px solid #f59e0b;"></div>Odabrano</div>
+  </div>
+  <p class="info">💡 Kliknite kućicu za rezervaciju odabranog dana.</p>
+</div>
+
+<!-- TABLICA -->
+<div id="tab-table" class="table-section" style="display:none;">
+  <span class="section-label">🪑 Stolovi</span>
+  <div class="table-wrap"><table id="deskTable"></table></div>
+  <span class="section-label park">🚗 Parkirna mjesta</span>
+  <div class="table-wrap"><table id="parkTable"></table></div>
+  <p class="info">💡 Vikendi i praznici isključeni. Danas označen žuto.</p>
+</div>
+
+<!-- MODAL stol -->
+<div class="modal-overlay" id="modal-floorbook">
+  <div class="modal">
+    <h2 id="fb-title">Rezervacija stola</h2>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:10px;" id="fb-date"></p>
+    <select id="fb-sel" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"></select>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveFloor('desk')">Spremi</button>
+      <button class="btn btn-secondary" onclick="closeModal('floorbook')">Odustani</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL parking -->
+<div class="modal-overlay" id="modal-floorpark">
+  <div class="modal">
+    <h2 id="fp-title">Rezervacija parkinga</h2>
+    <p style="font-size:11px;color:#6b7280;margin-bottom:10px;" id="fp-date"></p>
+    <select id="fp-sel" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"></select>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveFloor('park')">Spremi</button>
+      <button class="btn btn-secondary" onclick="closeModal('floorpark')">Odustani</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OSOBE -->
+<div class="modal-overlay" id="modal-people">
+  <div class="modal">
+    <h2>👥 Upravljanje osobama</h2>
+    <div class="tab-row"><button class="tab-btn active" onclick="switchTab('people','single')">Pojedinačno</button><button class="tab-btn" onclick="switchTab('people','bulk')">📋 Grupni unos</button></div>
+    <div class="tab-content active" id="people-tab-single">
+      <div class="add-single-row"><input type="text" id="newPersonInput" placeholder="Ime i prezime..." onkeydown="if(event.key==='Enter')addPerson()"><button onclick="addPerson()">+ Dodaj</button></div>
+      <div class="items-list" id="peopleList"></div>
+    </div>
+    <div class="tab-content" id="people-tab-bulk">
+      <div class="bulk-box"><label>Zalijepite imena — jedno po retku:</label><textarea id="bulkPeopleInput" placeholder="Ana Kovač&#10;Marko Horvat&#10;..."></textarea><p class="bulk-hint">Prazni reci se ignoriraju.</p><div class="bulk-actions"><button class="bulk-add-btn" onclick="bulkAddPeople()">+ Dodaj</button><button class="bulk-replace-btn" onclick="bulkReplacePeople()">⚠ Zamijeni sve</button></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="savePeople()">Spremi i zatvori</button><button class="btn btn-secondary" onclick="closeModal('people')">Odustani</button></div>
+  </div>
+</div>
+
+<!-- MODAL STOLOVI -->
+<div class="modal-overlay" id="modal-desks">
+  <div class="modal">
+    <h2>🪑 Upravljanje stolovima</h2>
+    <div class="tab-row"><button class="tab-btn active" onclick="switchTab('desks','single')">Uredi nazive</button><button class="tab-btn" onclick="switchTab('desks','bulk')">📋 Grupno</button><button class="tab-btn" onclick="switchTab('desks','add')">➕ Dodaj</button></div>
+    <div class="tab-content active" id="desks-tab-single"><div class="items-list" id="deskNameList"></div></div>
+    <div class="tab-content" id="desks-tab-bulk">
+      <div class="prefix-box"><label>⚡ Prefiks + redni broj:</label><div class="prefix-row"><input type="text" id="deskPrefixInput" placeholder="npr. Stol..."><span>+ 1,2,3...</span><button onclick="applyPrefix('desk')">Primijeni</button></div></div>
+      <div class="bulk-box"><label>Zalijepite sve nazive (jedno po retku):</label><textarea id="bulkDeskInput"></textarea><div class="bulk-actions"><button class="bulk-replace-btn" onclick="bulkReplaceNames('desk')">⚠ Zamijeni sve</button></div></div>
+    </div>
+    <div class="tab-content" id="desks-tab-add"><div class="add-new-box"><label>Dodaj novi stol:</label><div class="add-new-row"><input type="text" id="newDeskInput" placeholder="Naziv..." onkeydown="if(event.key==='Enter')addItem('desk')"><button onclick="addItem('desk')">+ Dodaj</button></div><p class="add-hint">Prazno = auto naziv.</p></div></div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="saveNames('desk')">Spremi i zatvori</button><button class="btn btn-secondary" onclick="closeModal('desks')">Odustani</button></div>
+  </div>
+</div>
+
+<!-- MODAL PARKING -->
+<div class="modal-overlay" id="modal-parking">
+  <div class="modal">
+    <h2>🚗 Upravljanje parkirnim mjestima</h2>
+    <div class="tab-row"><button class="tab-btn active" onclick="switchTab('parking','single')">Uredi nazive</button><button class="tab-btn" onclick="switchTab('parking','bulk')">📋 Grupno</button><button class="tab-btn" onclick="switchTab('parking','add')">➕ Dodaj</button></div>
+    <div class="tab-content active" id="parking-tab-single"><div class="items-list" id="parkNameList"></div></div>
+    <div class="tab-content" id="parking-tab-bulk">
+      <div class="prefix-box"><label>⚡ Prefiks + redni broj:</label><div class="prefix-row"><input type="text" id="parkPrefixInput" placeholder="npr. P..."><span>+ 1,2,3...</span><button onclick="applyPrefix('park')">Primijeni</button></div></div>
+      <div class="bulk-box"><label>Zalijepite sve nazive (jedno po retku):</label><textarea id="bulkParkInput"></textarea><div class="bulk-actions"><button class="bulk-replace-btn" onclick="bulkReplaceNames('park')">⚠ Zamijeni sve</button></div></div>
+    </div>
+    <div class="tab-content" id="parking-tab-add"><div class="add-new-box"><label>Dodaj novo parkirno mjesto:</label><div class="add-new-row"><input type="text" id="newParkInput" placeholder="Naziv..." onkeydown="if(event.key==='Enter')addItem('park')"><button onclick="addItem('park')">+ Dodaj</button></div><p class="add-hint">Prazno = auto naziv.</p></div></div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="saveNames('park')">Spremi i zatvori</button><button class="btn btn-secondary" onclick="closeModal('parking')">Odustani</button></div>
+  </div>
+</div>
+
+<script>
+const HR_PRAZNICI=['01-01','01-06','05-01','05-30','06-22','08-05','08-15','11-01','11-18','12-25','12-26'];
+const POMICNI={2024:['2024-03-31','2024-04-01','2024-05-30'],2025:['2025-04-20','2025-04-21','2025-06-19'],2026:['2026-04-05','2026-04-06','2026-06-04'],2027:['2027-03-28','2027-03-29','2027-05-27'],2028:['2028-04-16','2028-04-17','2028-05-25']};
+const MONTHS=['Siječanj','Veljača','Ožujak','Travanj','Svibanj','Lipanj','Srpanj','Kolovoz','Rujan','Listopad','Studeni','Prosinac'];
+const DAYS_S=['Ned','Pon','Uto','Sri','Čet','Pet','Sub'];
+const DAYS_F=['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'];
+
+let deskNames=['Stol 1','Stol 2','Stol 3','Stol 4','Stol 5','Stol 6','Stol 7','Stol 8','Stol 9','Stol 10','Stol 11','Stol 12','Stol 13','Stol 14','Stol 15','Stol 16','Stol 17','Stol 18','Stol 19','Stol 20','3D-1','3D-2','3D-3'];
+let parkNames=Array.from({length:8},(_,i)=>`P${i+1}`);
+let people=['Ana Kovač','Marko Horvat','Ivan Perić','Petra Novak','Luka Jurić','Maja Blažić','Tomislav Knez','Sara Vuković','Filip Šimić','Nina Babić'];
+let deskData={},parkData={};
+let tempDeskNames=[],tempParkNames=[],tempPeople=[];
+let selDeskIdx=null,selParkIdx=null;
+let fbReady=false;
+let _ign={desk:false,park:false,deskNames:false,parkNames:false,people:false};
+let floorDay='today'; // 'today' | 'tomorrow'
+
+// ── SYNC ──
+function setSS(s,m){const e=document.getElementById('syncStatus');e.className=s;e.textContent=m;if(s==='synced')setTimeout(()=>{if(e.className==='synced')e.textContent='✓ Sinkronizirano';},2000);}
+
+// ── FIREBASE ──
+function initFB(){
+  window._fbListen('reservations/desk',v=>{if(_ign.desk){_ign.desk=false;return;}deskData=v||{};sRD();updateFloor();updateCards();});
+  window._fbListen('reservations/park',v=>{if(_ign.park){_ign.park=false;return;}parkData=v||{};sRP();updateFloor();updateCards();});
+  window._fbListen('config/deskNames',v=>{if(_ign.deskNames){_ign.deskNames=false;return;}if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}});
+  window._fbListen('config/parkNames',v=>{if(_ign.parkNames){_ign.parkNames=false;return;}if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}});
+  window._fbListen('config/people',v=>{if(_ign.people){_ign.people=false;return;}if(v&&Array.isArray(v)){people=v;sRD();sRP();}});
+  fbReady=true;
+  document.getElementById('connectingOverlay').classList.add('hidden');
+  setSS('synced','✓ Sinkronizirano');
+}
+async function fbSave(path,val,ik){
+  setSS('syncing','⟳ Spremanje...');
+  if(ik)_ign[ik]=true;
+  try{await window._fbSet(path,val);setSS('synced','✓ Sinkronizirano');}
+  catch(e){setSS('error','✗ Greška');if(ik)_ign[ik]=false;console.error(e);}
+}
+
+// ── DATUM ──
+function ds(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function todayStr(){return ds(new Date());}
+function isPraznik(s){const y=parseInt(s.slice(0,4));if((POMICNI[y]||[]).includes(s))return true;return HR_PRAZNICI.includes(s.slice(5));}
+function isWork(d){const w=d.getDay();if(w===0||w===6)return false;return !isPraznik(ds(d));}
+function workdays(y,m){const r=[],n=new Date(y,m+1,0).getDate();for(let i=1;i<=n;i++){const d=new Date(y,m,i);if(isWork(d))r.push(d);}return r;}
+function nextWork(d){const n=new Date(d);do{n.setDate(n.getDate()+1);}while(!isWork(n));return n;}
+function floorDate(){const t=new Date();return floorDay==='today'?t:nextWork(t);}
+function floorDS(){return ds(floorDate());}
+
+// ── TABOVI ──
+function showMainTab(t){
+  document.getElementById('tab-floorplan').style.display=t==='floorplan'?'block':'none';
+  document.getElementById('tab-table').style.display=t==='table'?'block':'none';
+  document.querySelectorAll('.main-tab').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+t+"'")));
+  if(t==='floorplan')updateFloor();
+}
+
+// ── DAN TOGGLE ──
+function setFloorDay(day){
+  floorDay=day;
+  document.getElementById('btn-today').classList.toggle('active',day==='today');
+  document.getElementById('btn-tomorrow').classList.toggle('active',day==='tomorrow');
+  updateFloor();
+}
+
+// ── STATUS KARTICE ──
+function updateCards(){
+  const t=new Date(),ts=ds(t),tom=nextWork(t),toms=ds(tom);
+  function cf(data,names,s){let x=0;names.forEach((_,i)=>{if(data[`${s}_${i}`])x++;});return{free:names.length-x,taken:x};}
+  // stolovi danas
+  if(isWork(t)){const{free,taken}=cf(deskData,deskNames,ts);document.getElementById('dt-free').textContent=free;document.getElementById('dt-taken').textContent=taken;document.getElementById('card-desk-today').style.borderLeftColor=taken/deskNames.length>=.8?'#ef4444':taken/deskNames.length>=.5?'#f59e0b':'#22c55e';}
+  else{document.getElementById('dt-free').textContent='—';document.getElementById('dt-taken').textContent='—';}
+  // parking danas
+  if(isWork(t)){const{free,taken}=cf(parkData,parkNames,ts);document.getElementById('pt-free').textContent=free;document.getElementById('pt-taken').textContent=taken;document.getElementById('card-park-today').style.borderLeftColor=taken/parkNames.length>=.8?'#ef4444':taken/parkNames.length>=.5?'#f59e0b':'#065f46';}
+  else{document.getElementById('pt-free').textContent='—';document.getElementById('pt-taken').textContent='—';}
+  // stolovi sutra
+  {const{free,taken}=cf(deskData,deskNames,toms);document.getElementById('dm-free').textContent=free;document.getElementById('dm-taken').textContent=taken;document.getElementById('lbl-desk-tom').textContent=`🪑 ${DAYS_F[tom.getDay()].slice(0,3)} ${tom.getDate()}.${tom.getMonth()+1}.`;}
+  // parking sutra
+  {const{free,taken}=cf(parkData,parkNames,toms);document.getElementById('pm-free').textContent=free;document.getElementById('pm-taken').textContent=taken;document.getElementById('lbl-park-tom').textContent=`🚗 ${DAYS_F[tom.getDay()].slice(0,3)} ${tom.getDate()}.${tom.getMonth()+1}.`;}
+}
+
+// ── TLOCRT UPDATE ──
+function updateFloor(){
+  const s=floorDS(),d=floorDate();
+  const lbl=document.getElementById('floorDateLabel');
+  lbl.textContent=`${DAYS_F[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  lbl.style.color=floorDay==='today'?'#1a56a0':'#d97706';
+
+  // stolovi
+  for(let i=0;i<23;i++){
+    const r=document.getElementById('dr-'+i),ne=document.getElementById('dn-'+i),pe=document.getElementById('dp-'+i);
+    if(!r)continue;
+    const p=deskData[`${s}_${i}`]||'';
+    r.setAttribute('class',(p?'desk-bg-taken':'desk-bg-free')+' dbox');r.removeAttribute('style');
+    ne.textContent=deskNames[i]||`Stol ${i+1}`;ne.setAttribute('class',p?'dnum taken':'dnum');
+    if(p){const pt=p.trim().split(' ');pe.textContent=pt.length>1?pt[0][0]+'. '+pt[pt.length-1]:p;}else pe.textContent='';
+  }
+  // parking
+  for(let i=0;i<8;i++){
+    const r=document.getElementById('pr-'+i),ne=document.getElementById('pn-'+i),pe=document.getElementById('pp-'+i);
+    if(!r)continue;
+    const p=parkData[`${s}_${i}`]||'';
+    r.setAttribute('class',(p?'park-bg-taken':'park-bg-free')+' dbox');r.removeAttribute('style');
+    ne.textContent=parkNames[i]||`P${i+1}`;ne.setAttribute('class',p?'pnum taken':'pnum');
+    if(p){const pt=p.trim().split(' ');pe.textContent=pt.length>1?pt[0][0]+'. '+pt[pt.length-1]:p;}else pe.textContent='';
+  }
+}
+
+// ── KLIK STOL ──
+function selectDesk(idx){
+  const d=floorDate();if(!isWork(d)){alert('Odabrani dan nije radni dan.');return;}
+  selDeskIdx=idx;const s=floorDS();
+  document.getElementById('fb-title').textContent='Rezervacija: '+deskNames[idx];
+  document.getElementById('fb-date').textContent=DAYS_F[d.getDay()]+', '+d.getDate()+'. '+MONTHS[d.getMonth()]+' '+d.getFullYear();
+  for(let i=0;i<23;i++){const r=document.getElementById('dr-'+i);if(!r)continue;if(i===idx){r.removeAttribute('class');r.setAttribute('style','fill:#fef08a;stroke:#f59e0b;stroke-width:2;');}else r.removeAttribute('style');}
+  const sel=document.getElementById('fb-sel');
+  sel.innerHTML='<option value="">— Slobodno —</option>';
+  people.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  sel.value=deskData[`${s}_${idx}`]||'';
+  openModal('floorbook');
+}
+
+// ── KLIK PARKING ──
+function selectPark(idx){
+  const d=floorDate();if(!isWork(d)){alert('Odabrani dan nije radni dan.');return;}
+  selParkIdx=idx;const s=floorDS();
+  document.getElementById('fp-title').textContent='Rezervacija: '+parkNames[idx];
+  document.getElementById('fp-date').textContent=DAYS_F[d.getDay()]+', '+d.getDate()+'. '+MONTHS[d.getMonth()]+' '+d.getFullYear();
+  for(let i=0;i<8;i++){const r=document.getElementById('pr-'+i);if(!r)continue;if(i===idx){r.removeAttribute('class');r.setAttribute('style','fill:#fef08a;stroke:#f59e0b;stroke-width:2;');}else r.removeAttribute('style');}
+  const sel=document.getElementById('fp-sel');
+  sel.innerHTML='<option value="">— Slobodno —</option>';
+  people.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  sel.value=parkData[`${s}_${idx}`]||'';
+  openModal('floorpark');
+}
+
+// ── SPREMI TLOCRT ──
+async function saveFloor(type){
+  const s=floorDS(),y=parseInt(document.getElementById('yearSel').value),m=parseInt(document.getElementById('monthSel').value);
+  if(type==='desk'){
+    if(selDeskIdx===null)return;
+    const k=`${s}_${selDeskIdx}`,v=document.getElementById('fb-sel').value;
+    if(v)deskData[k]=v;else delete deskData[k];
+    closeModal('floorbook');updateFloor();
+    await fbSave('reservations/desk',deskData,'desk');
+    const fd=floorDate();if(fd.getFullYear()===y&&fd.getMonth()===m)sRD();
+  }else{
+    if(selParkIdx===null)return;
+    const k=`${s}_${selParkIdx}`,v=document.getElementById('fp-sel').value;
+    if(v)parkData[k]=v;else delete parkData[k];
+    closeModal('floorpark');updateFloor();
+    await fbSave('reservations/park',parkData,'park');
+    const fd=floorDate();if(fd.getFullYear()===y&&fd.getMonth()===m)sRP();
+  }
+  updateCards();
+}
+
+// ── MODALI ──
+function switchTab(modal,tab){
+  document.querySelectorAll('[id^="'+modal+'-tab-"]').forEach(e=>e.classList.remove('active'));
+  document.getElementById(modal+'-tab-'+tab).classList.add('active');
+  document.querySelectorAll('#modal-'+modal+' .tab-btn').forEach(b=>{b.classList.toggle('active',b.getAttribute('onclick').includes("'"+tab+"'"));});
+}
+function openModal(type){
+  if(type==='people'){tempPeople=[...people];renderPeopleList();}
+  else if(type==='desks'){tempDeskNames=[...deskNames];renderNameList('desk');}
+  else if(type==='parking'){tempParkNames=[...parkNames];renderNameList('park');}
+  const el=document.getElementById('modal-'+type);
+  if(type!=='floorbook'&&type!=='floorpark'){el.querySelectorAll('.tab-content').forEach((e,i)=>e.classList.toggle('active',i===0));el.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));}
+  el.classList.add('open');
+}
+function closeModal(type){document.getElementById('modal-'+type).classList.remove('open');updateFloor();}
+document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',function(e){if(e.target===this){this.classList.remove('open');updateFloor();}});});
+
+// ── OSOBE ──
+function renderPeopleList(){
+  const list=document.getElementById('peopleList');list.innerHTML='';
+  tempPeople.forEach((p,i)=>{const div=document.createElement('div');div.className='list-item';const inp=document.createElement('input');inp.type='text';inp.value=p;inp.addEventListener('input',function(){tempPeople[i]=this.value;});const del=document.createElement('button');del.className='del-btn';del.textContent='✕';del.onclick=()=>{tempPeople.splice(i,1);renderPeopleList();};div.appendChild(inp);div.appendChild(del);list.appendChild(div);});
+}
+function addPerson(){const i=document.getElementById('newPersonInput'),n=i.value.trim();if(!n)return;tempPeople.push(n);i.value='';renderPeopleList();}
+function bulkAddPeople(){const n=document.getElementById('bulkPeopleInput').value.split('\n').map(s=>s.trim()).filter(Boolean);if(!n.length){alert('Nema podataka!');return;}let a=0;n.forEach(x=>{if(!tempPeople.includes(x)){tempPeople.push(x);a++;}});document.getElementById('bulkPeopleInput').value='';renderPeopleList();switchTab('people','single');alert('Dodano '+a+' osoba.');}
+function bulkReplacePeople(){const n=document.getElementById('bulkPeopleInput').value.split('\n').map(s=>s.trim()).filter(Boolean);if(!n.length||!confirm('Zamijeni cijelu listu?'))return;tempPeople=[...n];document.getElementById('bulkPeopleInput').value='';renderPeopleList();switchTab('people','single');}
+async function savePeople(){people=[...tempPeople];closeModal('people');await fbSave('config/people',people,'people');rebuild();}
+
+// ── NAZIVI ──
+function renderNameList(type){
+  const names=type==='desk'?tempDeskNames:tempParkNames,lid=type==='desk'?'deskNameList':'parkNameList';
+  const list=document.getElementById(lid);list.innerHTML='';
+  names.forEach((name,i)=>{const div=document.createElement('div');div.className='list-item';const idx=document.createElement('span');idx.className='item-idx';idx.textContent=(i+1)+'.';const inp=document.createElement('input');inp.type='text';inp.value=name;inp.addEventListener('input',function(){if(type==='desk')tempDeskNames[i]=this.value;else tempParkNames[i]=this.value;});const del=document.createElement('button');del.className='del-btn';del.textContent='✕';del.onclick=()=>{if(type==='desk')tempDeskNames.splice(i,1);else tempParkNames.splice(i,1);renderNameList(type);};div.appendChild(idx);div.appendChild(inp);div.appendChild(del);list.appendChild(div);});
+}
+function addItem(type){const id=type==='desk'?'newDeskInput':'newParkInput',n=document.getElementById(id).value.trim(),auto=type==='desk'?`Stol ${tempDeskNames.length+1}`:`P${tempParkNames.length+1}`;if(type==='desk')tempDeskNames.push(n||auto);else tempParkNames.push(n||auto);document.getElementById(id).value='';renderNameList(type);switchTab(type==='desk'?'desks':'parking','single');}
+function applyPrefix(type){const id=type==='desk'?'deskPrefixInput':'parkPrefixInput',prefix=document.getElementById(id).value.trim();if(!prefix){alert('Unesite prefiks!');return;}const names=type==='desk'?tempDeskNames:tempParkNames,nn=names.map((_,i)=>`${prefix} ${i+1}`);if(type==='desk')tempDeskNames=nn;else tempParkNames=nn;renderNameList(type);document.getElementById(id).value='';switchTab(type==='desk'?'desks':'parking','single');}
+function bulkReplaceNames(type){const id=type==='desk'?'bulkDeskInput':'bulkParkInput',names=document.getElementById(id).value.split('\n').map(s=>s.trim()).filter(Boolean);if(!names.length||!confirm('Zamijeni sve nazive?'))return;if(type==='desk')tempDeskNames=names;else tempParkNames=names;document.getElementById(id).value='';renderNameList(type);switchTab(type==='desk'?'desks':'parking','single');}
+async function saveNames(type){
+  if(type==='desk')deskNames=[...tempDeskNames];else parkNames=[...tempParkNames];
+  closeModal(type==='desk'?'desks':'parking');
+  await fbSave('config/'+(type==='desk'?'deskNames':'parkNames'),type==='desk'?deskNames:parkNames,type==='desk'?'deskNames':'parkNames');
+  rebuild();updateFloor();
+}
+
+// ── TABLICA ──
+function makeSelect(data,key,isPark){
+  const sel=document.createElement('select');
+  sel.innerHTML='<option value="">—</option>';
+  people.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  sel.value=data[key]||'';
+  if(data[key])sel.classList.add(isPark?'park-reserved':'reserved');
+  sel.addEventListener('change',async function(){
+    const v=this.value;if(v)data[key]=v;else delete data[key];
+    this.classList.toggle(isPark?'park-reserved':'reserved',!!v);
+    updateCards();updateFloor();
+    await fbSave('reservations/'+(isPark?'park':'desk'),isPark?parkData:deskData,isPark?'park':'desk');
+  });
+  return sel;
+}
+function buildTable(tid,names,data,isPark,wdays,tStr,y,m){
+  const t=document.getElementById(tid);t.innerHTML='';
+  const hc=isPark?'park-header':'',dc=isPark?'park-date':'';
+  const hr=document.createElement('tr');const h0=document.createElement('th');h0.className='corner';hr.appendChild(h0);
+  wdays.forEach(d=>{const s=ds(d),th=document.createElement('th');th.className='day-header '+hc+(s===tStr?' today-col':'');th.textContent=DAYS_S[d.getDay()];hr.appendChild(th);});
+  t.appendChild(hr);
+  const dr=document.createElement('tr');dr.className='date-row';const dc0=document.createElement('td');dc0.className='corner-date';dc0.textContent=MONTHS[m]+' '+y;dr.appendChild(dc0);
+  wdays.forEach(d=>{const s=ds(d),td=document.createElement('td');td.className=(dc+(s===tStr?' today-col':'')).trim();td.textContent=d.getDate()+'.';dr.appendChild(td);});
+  t.appendChild(dr);
+  names.forEach((name,idx)=>{
+    const tr=document.createElement('tr'),tl=document.createElement('td');tl.className='row-label'+(isPark?' park-label':'');tl.textContent=name;tl.title=name;tr.appendChild(tl);
+    wdays.forEach(d=>{const s=ds(d),k=`${s}_${idx}`,td=document.createElement('td');td.className='cell'+(s===tStr?' today-col':'');td.appendChild(makeSelect(data,k,isPark));tr.appendChild(td);});
+    t.appendChild(tr);
+  });
+}
+function sRD(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value);buildTable('deskTable',deskNames,deskData,false,workdays(y,m),todayStr(),y,m);}
+function sRP(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value);buildTable('parkTable',parkNames,parkData,true,workdays(y,m),todayStr(),y,m);}
+function rebuild(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value),ts=todayStr(),wd=workdays(y,m);buildTable('deskTable',deskNames,deskData,false,wd,ts,y,m);buildTable('parkTable',parkNames,parkData,true,wd,ts,y,m);updateCards();updateFloor();}
+
+function init(){
+  const today=new Date(),mS=document.getElementById('monthSel'),yS=document.getElementById('yearSel');
+  MONTHS.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;if(i===today.getMonth())o.selected=true;mS.appendChild(o);});
+  for(let y=2024;y<=2028;y++){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===today.getFullYear())o.selected=true;yS.appendChild(o);}
+  rebuild();
+  if(window._fbReady)initFB();
+  else{window.addEventListener('firebase-ready',initFB);setTimeout(()=>{if(!fbReady){document.getElementById('connectingOverlay').classList.add('hidden');setSS('error','✗ Firebase nije spojen');}},15000);}
+}
+init();
+</script>
+</body>
+</html>
