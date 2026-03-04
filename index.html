@@ -12,7 +12,7 @@
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
- const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -169,6 +169,9 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; font-size: 13px; }
 
 /* TABLICA */
 .table-section { padding:10px 12px; }
+.table-month-bar { display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 12px;background:white;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.table-month-bar label { font-size:12px;font-weight:600;color:#374151; }
+.table-month-bar select { padding:5px 8px;border-radius:5px;border:1px solid #d1d5db;font-size:12px;color:#1f2937; }
 .section-label { font-weight:bold;font-size:12px;color:#374151;background:#f3f4f6;padding:4px 10px;border:1px solid #d1d5db;border-bottom:none;border-radius:6px 6px 0 0;display:inline-block; }
 .section-label.park { background:#ecfdf5;border-color:#6ee7b7;color:#065f46; }
 .table-wrap { overflow-x:auto;border-radius:0 8px 8px 8px;box-shadow:0 1px 6px rgba(0,0,0,.12);margin-bottom:12px; }
@@ -290,8 +293,6 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 
 <div class="top-bar">
   <h1>📋 IAS Shared Desk</h1>
-  <div><label>Mjesec: </label><select id="monthSel" onchange="rebuild()"></select></div>
-  <div><label>Godina: </label><select id="yearSel" onchange="rebuild()"></select></div>
   <button onclick="openModal('postavke')">⚙️ Postavke</button>
   <div class="user-info">
     <img class="user-avatar" id="userAvatar" src="" alt="" style="display:none;">
@@ -472,6 +473,12 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 
 <!-- TABLICA -->
 <div id="tab-table" class="table-section" style="display:none;">
+  <div class="table-month-bar">
+    <label>Mjesec:</label>
+    <select id="monthSel" onchange="rebuild()"></select>
+    <label>Godina:</label>
+    <select id="yearSel" onchange="rebuild()"></select>
+  </div>
   <span class="section-label">🪑 Stolovi</span>
   <div class="table-wrap"><table id="deskTable"></table></div>
   <span class="section-label park">🚗 Parkirna mjesta</span>
