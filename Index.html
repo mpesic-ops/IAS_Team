@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shared Desk</title>
+<title>IAS Shared Desk</title>
 <script type="module">
   import { initializeApp }                                from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -12,7 +12,7 @@
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
+ const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -108,19 +108,21 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; font-size: 13px; }
 .top-bar button { padding:5px 10px;border-radius:4px;border:none;font-size:11px;cursor:pointer;background:#f0f9ff;color:#1a56a0;font-weight:bold; }
 .top-bar button:hover { background:#e0f2fe; }
 
-/* STATUS — kompaktan, redoslijed: stolovi danas, parking danas, stolovi sutra, parking sutra */
-.status-bars { display:flex;gap:5px;padding:6px 12px;flex-wrap:wrap; }
-.stat-card { display:flex;align-items:center;gap:8px;background:white;border-radius:5px;padding:5px 10px;box-shadow:0 1px 3px rgba(0,0,0,.1);flex:1;min-width:125px;border-left:4px solid #22c55e; }
-.stat-card.park-today    { border-left-color:#065f46; }
-.stat-card.desk-tomorrow { border-left-color:#f59e0b; }
-.stat-card.park-tomorrow { border-left-color:#92400e; }
-.stat-title { font-weight:bold;font-size:10px;color:#555;white-space:nowrap;flex-shrink:0; }
-.stat-counts { display:flex;gap:6px; }
-.stat-item { display:flex;align-items:center;gap:3px;font-size:11px; }
-.stat-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
-.dot-green { background:#22c55e; }
-.dot-red   { background:#ef4444; }
-.stat-num  { font-weight:bold;font-size:12px;color:#1f2937; }
+.status-bars { display:flex;gap:10px;padding:10px 12px;flex-wrap:wrap; }
+.avail-block { flex:1;min-width:180px;background:white;border-radius:12px;padding:14px 18px;box-shadow:0 2px 8px rgba(0,0,0,.1);border-top:4px solid #1a56a0; }
+.avail-block.tomorrow { border-top-color:#f59e0b; }
+.avail-header { font-size:12px;font-weight:700;color:#374151;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f3f4f6; }
+.avail-rows { display:flex;flex-direction:column;gap:6px; }
+.avail-row { display:flex;align-items:center;gap:8px; }
+.avail-icon { font-size:15px;width:22px;text-align:center;flex-shrink:0; }
+.avail-label { font-size:12px;color:#6b7280;flex:1; }
+.avail-num { font-size:22px;font-weight:800;color:#1a56a0;min-width:32px;text-align:right; }
+.avail-block.tomorrow .avail-num { color:#d97706; }
+.postavke-btn { display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:8px;background:white;cursor:pointer;text-align:left;transition:all .2s; }
+.postavke-btn:hover { border-color:#1a56a0;background:#f0f7ff; }
+.postavke-btn > span { font-size:22px;flex-shrink:0; }
+.postavke-btn div strong { font-size:13px;color:#1f2937;display:block; }
+.postavke-btn div p { font-size:11px;color:#6b7280;margin:2px 0 0; }
 
 .main-tabs { display:flex;background:white;border-bottom:2px solid #e5e7eb;padding:0 12px; }
 .main-tab { padding:9px 16px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap; }
@@ -232,8 +234,9 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 .info { font-size:11px;color:#6b7280;padding:4px 12px 10px; }
 
 @media (max-width:640px) {
-  .status-bars { gap:4px;padding:5px 8px; }
-  .stat-card { min-width:110px;padding:4px 8px; }
+  .status-bars { gap:6px;padding:6px 8px; }
+  .avail-block { min-width:140px;padding:10px 12px; }
+  .avail-num { font-size:18px; }
   .floorplan-container { flex-direction:column; }
   .room { width:100% !important; }
   .floor-svg { width:100% !important;height:auto !important; }
@@ -247,7 +250,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <div id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">📋</div>
-    <h1>Shared Desk</h1>
+    <h1>IAS Shared Desk</h1>
     <p>Prijavite se za pristup rezervacijama stolova i parkinga.</p>
     <button class="google-btn" onclick="window._fbSignIn()">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -284,12 +287,10 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <div id="syncStatus" class="synced">✓ Sinkronizirano</div>
 
 <div class="top-bar">
-  <h1>📋 Shared Desk</h1>
-  <div><label>Mj: </label><select id="monthSel" onchange="rebuild()"></select></div>
-  <div><label>God: </label><select id="yearSel" onchange="rebuild()"></select></div>
-  <button onclick="openModal('people')">👥 Osobe</button>
-  <button onclick="openModal('desks')">🪑 Stolovi</button>
-  <button onclick="openModal('parking')">🚗 Parking</button>
+  <h1>📋 IAS Shared Desk</h1>
+  <div><label>Mjesec: </label><select id="monthSel" onchange="rebuild()"></select></div>
+  <div><label>Godina: </label><select id="yearSel" onchange="rebuild()"></select></div>
+  <button onclick="openModal('postavke')">⚙️ Postavke</button>
   <div class="user-info">
     <img class="user-avatar" id="userAvatar" src="" alt="" style="display:none;">
     <span class="user-name" id="userName"></span>
@@ -297,37 +298,29 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   </div>
 </div>
 
-<!-- STATUS: stolovi danas | parking danas | stolovi sutra | parking sutra -->
+<!-- STATUS: dva velika bloka danas/sutra -->
 <div class="status-bars">
-  <div class="stat-card" id="card-desk-today">
-    <div class="stat-title">🪑 Stolovi danas</div>
-    <div class="stat-counts">
-      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="dt-free" class="stat-num">-</span>&nbsp;sl.</div>
-      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="dt-taken" class="stat-num">-</span>&nbsp;zau.</div>
+  <div class="avail-block" id="block-today">
+    <div class="avail-header">Slobodna mjesta danas</div>
+    <div class="avail-rows">
+      <div class="avail-row"><span class="avail-icon">🪑</span><span class="avail-label">Stolovi</span><span class="avail-num" id="dt-free">-</span></div>
+      <div class="avail-row"><span class="avail-icon">🚗</span><span class="avail-label">Parking</span><span class="avail-num" id="pt-free">-</span></div>
     </div>
   </div>
-  <div class="stat-card park-today" id="card-park-today">
-    <div class="stat-title">🚗 Parking danas</div>
-    <div class="stat-counts">
-      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="pt-free" class="stat-num">-</span>&nbsp;sl.</div>
-      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="pt-taken" class="stat-num">-</span>&nbsp;zau.</div>
-    </div>
-  </div>
-  <div class="stat-card desk-tomorrow" id="card-desk-tomorrow">
-    <div class="stat-title" id="lbl-desk-tom">🪑 Stolovi sutra</div>
-    <div class="stat-counts">
-      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="dm-free" class="stat-num">-</span>&nbsp;sl.</div>
-      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="dm-taken" class="stat-num">-</span>&nbsp;zau.</div>
-    </div>
-  </div>
-  <div class="stat-card park-tomorrow" id="card-park-tomorrow">
-    <div class="stat-title" id="lbl-park-tom">🚗 Parking sutra</div>
-    <div class="stat-counts">
-      <div class="stat-item"><div class="stat-dot dot-green"></div><span id="pm-free" class="stat-num">-</span>&nbsp;sl.</div>
-      <div class="stat-item"><div class="stat-dot dot-red"></div><span id="pm-taken" class="stat-num">-</span>&nbsp;zau.</div>
+  <div class="avail-block tomorrow" id="block-tomorrow">
+    <div class="avail-header" id="lbl-tomorrow-header">Slobodna mjesta sutra</div>
+    <div class="avail-rows">
+      <div class="avail-row"><span class="avail-icon">🪑</span><span class="avail-label">Stolovi</span><span class="avail-num" id="dm-free">-</span></div>
+      <div class="avail-row"><span class="avail-icon">🚗</span><span class="avail-label">Parking</span><span class="avail-num" id="pm-free">-</span></div>
     </div>
   </div>
 </div>
+<span id="dt-taken" style="display:none"></span><span id="pt-taken" style="display:none"></span>
+<span id="dm-taken" style="display:none"></span><span id="pm-taken" style="display:none"></span>
+<span id="lbl-desk-tom" style="display:none"></span><span id="lbl-park-tom" style="display:none"></span>
+<span id="card-desk-today" style="display:none"></span><span id="card-park-today" style="display:none"></span>
+
+<div class="main-tabs">
 
 <div class="main-tabs">
   <button class="main-tab active" onclick="showMainTab('floorplan')">🗺️ Tlocrt</button>
@@ -354,7 +347,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   <div class="floorplan-container">
 
     <!-- SOBA 3C -->
-    <div class="room room-3c" style="width:252px;">
+    <div class="room room-3c" style="width:296px;">
       <div class="room-header">🏢 Soba 3C</div>
       <div class="room-body">
         <!--
@@ -373,46 +366,46 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
             sredina = (225+263)/2 = 244 → ulaz y = 244-18=226, h=36
           Donji rub: 336+30+12=378 → viewBox h=378
         -->
-        <svg class="floor-svg" width="240" height="378" viewBox="0 0 240 378">
-          <rect x="1" y="1" width="238" height="376" rx="5" fill="#fafbfc" stroke="#cbd5e1" stroke-width="1.5"/>
+        <svg class="floor-svg" width="280" height="430" viewBox="0 0 280 430">
+          <rect x="1" y="1" width="278" height="428" rx="5" fill="#fafbfc" stroke="#cbd5e1" stroke-width="1.5"/>
           <!-- Terasa -->
-          <rect x="8" y="6" width="224" height="18" rx="3" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1"/>
-          <text x="120" y="19" text-anchor="middle" font-size="9" fill="#0369a1" font-weight="bold" font-family="Arial">Terasa</text>
+          <rect x="8" y="6" width="262" height="20" rx="3" fill="#e0f2fe" stroke="#7dd3fc" stroke-width="1"/>
+          <text x="139" y="20" text-anchor="middle" font-size="9" fill="#0369a1" font-weight="bold" font-family="Arial">Terasa</text>
           <!-- Ulaz — centriran na sredinu između stola 13 i 14 -->
-          <rect x="1" y="226" width="13" height="36" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1"/>
-          <text x="7" y="249" text-anchor="middle" font-size="7" fill="#92400e" font-weight="bold" font-family="Arial" transform="rotate(-90,7,249)">Ulaz</text>
+          <rect x="1" y="247" width="15" height="46" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1"/>
+          <text x="8" y="276" text-anchor="middle" font-size="9" fill="#92400e" font-weight="bold" font-family="Arial" transform="rotate(-90,8,276)">Ulaz</text>
 
           <!-- GRUPA A -->
-          <g class="desk-btn" onclick="selectDesk(0)"><rect id="dr-0" x="18" y="34" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-0" x="44" y="46" text-anchor="middle" class="dnum">1</text><text id="dp-0" x="44" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(1)"><rect id="dr-1" x="78" y="34" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-1" x="104" y="46" text-anchor="middle" class="dnum">2</text><text id="dp-1" x="104" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(3)"><rect id="dr-3" x="18" y="72" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-3" x="44" y="84" text-anchor="middle" class="dnum">4</text><text id="dp-3" x="44" y="96" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(4)"><rect id="dr-4" x="78" y="72" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-4" x="104" y="84" text-anchor="middle" class="dnum">5</text><text id="dp-4" x="104" y="96" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(2)"><rect id="dr-2" x="162" y="34" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-2" x="191" y="46" text-anchor="middle" class="dnum">3</text><text id="dp-2" x="191" y="58" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(5)"><rect id="dr-5" x="162" y="72" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-5" x="191" y="84" text-anchor="middle" class="dnum">6</text><text id="dp-5" x="191" y="96" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="112" x2="224" y2="112" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(0)"><rect id="dr-0" x="18" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-0" x="44" y="46" text-anchor="middle" class="dnum">1</text><text id="dp-0" x="44" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(1)"><rect id="dr-1" x="96" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-1" x="104" y="46" text-anchor="middle" class="dnum">2</text><text id="dp-1" x="104" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(3)"><rect id="dr-3" x="18" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-3" x="44" y="84" text-anchor="middle" class="dnum">4</text><text id="dp-3" x="44" y="96" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(4)"><rect id="dr-4" x="96" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-4" x="104" y="84" text-anchor="middle" class="dnum">5</text><text id="dp-4" x="104" y="96" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(2)"><rect id="dr-2" x="174" y="34" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-2" x="191" y="46" text-anchor="middle" class="dnum">3</text><text id="dp-2" x="191" y="58" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(5)"><rect id="dr-5" x="174" y="78" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-5" x="191" y="84" text-anchor="middle" class="dnum">6</text><text id="dp-5" x="191" y="96" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="120" x2="264" y2="120" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA C -->
-          <g class="desk-btn" onclick="selectDesk(6)"><rect id="dr-6" x="18" y="122" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-6" x="44" y="134" text-anchor="middle" class="dnum">7</text><text id="dp-6" x="44" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(7)"><rect id="dr-7" x="78" y="122" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-7" x="104" y="134" text-anchor="middle" class="dnum">8</text><text id="dp-7" x="104" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(9)"><rect id="dr-9" x="18" y="160" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-9" x="44" y="172" text-anchor="middle" class="dnum">10</text><text id="dp-9" x="44" y="184" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(10)"><rect id="dr-10" x="78" y="160" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-10" x="104" y="172" text-anchor="middle" class="dnum">11</text><text id="dp-10" x="104" y="184" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(8)"><rect id="dr-8" x="162" y="122" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-8" x="191" y="134" text-anchor="middle" class="dnum">9</text><text id="dp-8" x="191" y="146" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(11)"><rect id="dr-11" x="162" y="160" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-11" x="191" y="172" text-anchor="middle" class="dnum">12</text><text id="dp-11" x="191" y="184" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="200" x2="224" y2="200" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(6)"><rect id="dr-6" x="18" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-6" x="44" y="134" text-anchor="middle" class="dnum">7</text><text id="dp-6" x="44" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(7)"><rect id="dr-7" x="96" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-7" x="104" y="134" text-anchor="middle" class="dnum">8</text><text id="dp-7" x="104" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(9)"><rect id="dr-9" x="18" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-9" x="44" y="172" text-anchor="middle" class="dnum">10</text><text id="dp-9" x="44" y="184" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(10)"><rect id="dr-10" x="96" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-10" x="104" y="172" text-anchor="middle" class="dnum">11</text><text id="dp-10" x="104" y="184" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(8)"><rect id="dr-8" x="174" y="132" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-8" x="191" y="134" text-anchor="middle" class="dnum">9</text><text id="dp-8" x="191" y="146" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(11)"><rect id="dr-11" x="174" y="176" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-11" x="191" y="172" text-anchor="middle" class="dnum">12</text><text id="dp-11" x="191" y="184" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="218" x2="264" y2="218" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA E — 13 i 14 desno, ulaz centriran na njih -->
-          <g class="desk-btn" onclick="selectDesk(12)"><rect id="dr-12" x="162" y="210" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-12" x="191" y="222" text-anchor="middle" class="dnum">13</text><text id="dp-12" x="191" y="234" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(13)"><rect id="dr-13" x="162" y="248" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-13" x="191" y="260" text-anchor="middle" class="dnum">14</text><text id="dp-13" x="191" y="272" text-anchor="middle" class="dperson"></text></g>
-          <line x1="16" y1="288" x2="224" y2="288" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
+          <g class="desk-btn" onclick="selectDesk(12)"><rect id="dr-12" x="174" y="230" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-12" x="191" y="222" text-anchor="middle" class="dnum">13</text><text id="dp-12" x="191" y="234" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(13)"><rect id="dr-13" x="174" y="274" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-13" x="191" y="260" text-anchor="middle" class="dnum">14</text><text id="dp-13" x="191" y="272" text-anchor="middle" class="dperson"></text></g>
+          <line x1="16" y1="316" x2="264" y2="316" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3"/>
 
           <!-- GRUPA F -->
-          <g class="desk-btn" onclick="selectDesk(14)"><rect id="dr-14" x="18" y="298" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-14" x="44" y="310" text-anchor="middle" class="dnum">15</text><text id="dp-14" x="44" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(15)"><rect id="dr-15" x="78" y="298" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-15" x="104" y="310" text-anchor="middle" class="dnum">16</text><text id="dp-15" x="104" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(17)"><rect id="dr-17" x="18" y="336" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-17" x="44" y="348" text-anchor="middle" class="dnum">18</text><text id="dp-17" x="44" y="360" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(18)"><rect id="dr-18" x="78" y="336" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-18" x="104" y="348" text-anchor="middle" class="dnum">19</text><text id="dp-18" x="104" y="360" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(16)"><rect id="dr-16" x="162" y="298" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-16" x="191" y="310" text-anchor="middle" class="dnum">17</text><text id="dp-16" x="191" y="322" text-anchor="middle" class="dperson"></text></g>
-          <g class="desk-btn" onclick="selectDesk(19)"><rect id="dr-19" x="162" y="336" width="58" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-19" x="191" y="348" text-anchor="middle" class="dnum">20</text><text id="dp-19" x="191" y="360" text-anchor="middle" class="dperson"></text></g>
-          <text x="14" y="373" font-size="9" fill="#d1d5db" font-family="Arial">3C</text>
+          <g class="desk-btn" onclick="selectDesk(14)"><rect id="dr-14" x="18" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-14" x="44" y="310" text-anchor="middle" class="dnum">15</text><text id="dp-14" x="44" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(15)"><rect id="dr-15" x="96" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-15" x="104" y="310" text-anchor="middle" class="dnum">16</text><text id="dp-15" x="104" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(17)"><rect id="dr-17" x="18" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-17" x="44" y="348" text-anchor="middle" class="dnum">18</text><text id="dp-17" x="44" y="360" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(18)"><rect id="dr-18" x="96" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-18" x="104" y="348" text-anchor="middle" class="dnum">19</text><text id="dp-18" x="104" y="360" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(16)"><rect id="dr-16" x="174" y="328" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-16" x="191" y="310" text-anchor="middle" class="dnum">17</text><text id="dp-16" x="191" y="322" text-anchor="middle" class="dperson"></text></g>
+          <g class="desk-btn" onclick="selectDesk(19)"><rect id="dr-19" x="174" y="372" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-19" x="191" y="348" text-anchor="middle" class="dnum">20</text><text id="dp-19" x="191" y="360" text-anchor="middle" class="dperson"></text></g>
+          <text x="14" y="425" font-size="9" fill="#d1d5db" font-family="Arial">3C</text>
         </svg>
       </div>
     </div>
@@ -427,15 +420,15 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
         3D-3: x=10 y=48 w=52 h=30   (10+30+8=48)
         viewBox: w=10+52+8+52+10=132, h=10+30+8+30+10=88
       -->
-      <div class="room room-3d" style="width:152px;">
+      <div class="room room-3d" style="width:188px;">
         <div class="room-header">🏢 Soba 3D</div>
         <div class="room-body">
-          <svg class="floor-svg" width="132" height="88" viewBox="0 0 132 88">
-            <rect x="1" y="1" width="130" height="86" rx="5" fill="#f0fdf4" stroke="#6ee7b7" stroke-width="1.5"/>
-            <g class="desk-btn" onclick="selectDesk(20)"><rect id="dr-20" x="10" y="10" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-20" x="36" y="22" text-anchor="middle" class="dnum">3D-1</text><text id="dp-20" x="36" y="34" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectDesk(21)"><rect id="dr-21" x="70" y="10" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-21" x="96" y="22" text-anchor="middle" class="dnum">3D-2</text><text id="dp-21" x="96" y="34" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectDesk(22)"><rect id="dr-22" x="10" y="48" width="52" height="30" rx="3" class="desk-bg-free dbox"/><text id="dn-22" x="36" y="60" text-anchor="middle" class="dnum">3D-3</text><text id="dp-22" x="36" y="72" text-anchor="middle" class="dperson"></text></g>
-            <text x="122" y="83" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">3D</text>
+          <svg class="floor-svg" width="168" height="100" viewBox="0 0 168 100">
+            <rect x="1" y="1" width="166" height="98" rx="5" fill="#f0fdf4" stroke="#6ee7b7" stroke-width="1.5"/>
+            <g class="desk-btn" onclick="selectDesk(20)"><rect id="dr-20" x="10" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-20" x="36" y="22" text-anchor="middle" class="dnum">3D-1</text><text id="dp-20" x="36" y="34" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(21)"><rect id="dr-21" x="88" y="10" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-21" x="96" y="22" text-anchor="middle" class="dnum">3D-2</text><text id="dp-21" x="96" y="34" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectDesk(22)"><rect id="dr-22" x="10" y="54" width="70" height="36" rx="3" class="desk-bg-free dbox"/><text id="dn-22" x="36" y="60" text-anchor="middle" class="dnum">3D-3</text><text id="dp-22" x="36" y="72" text-anchor="middle" class="dperson"></text></g>
+            <text x="158" y="95" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">3D</text>
           </svg>
         </div>
       </div>
@@ -446,20 +439,20 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
         Red 1: y=10, Red 2: y=48, Red 3: y=86, Red 4: y=124  (gap=8)
         viewBox: w=10+52+8+52+10=132, h=10+30+8+30+8+30+8+30+10=164
       -->
-      <div class="room room-park" style="width:152px;">
+      <div class="room room-park" style="width:188px;">
         <div class="room-header">🚗 Parking</div>
         <div class="room-body">
-          <svg class="floor-svg" width="132" height="164" viewBox="0 0 132 164">
-            <rect x="1" y="1" width="130" height="162" rx="5" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1.5"/>
+          <svg class="floor-svg" width="168" height="192" viewBox="0 0 168 192">
+            <rect x="1" y="1" width="166" height="190" rx="5" fill="#faf5ff" stroke="#c4b5fd" stroke-width="1.5"/>
             <g class="desk-btn" onclick="selectPark(0)"><rect id="pr-0" x="10" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-0" x="36" y="22"  text-anchor="middle" class="pnum">P1</text><text id="pp-0" x="36" y="34"  text-anchor="middle" class="dperson"></text></g>
             <g class="desk-btn" onclick="selectPark(1)"><rect id="pr-1" x="70" y="10"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-1" x="96" y="22"  text-anchor="middle" class="pnum">P2</text><text id="pp-1" x="96" y="34"  text-anchor="middle" class="dperson"></text></g>
             <g class="desk-btn" onclick="selectPark(2)"><rect id="pr-2" x="10" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-2" x="36" y="60"  text-anchor="middle" class="pnum">P3</text><text id="pp-2" x="36" y="72"  text-anchor="middle" class="dperson"></text></g>
             <g class="desk-btn" onclick="selectPark(3)"><rect id="pr-3" x="70" y="48"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-3" x="96" y="60"  text-anchor="middle" class="pnum">P4</text><text id="pp-3" x="96" y="72"  text-anchor="middle" class="dperson"></text></g>
             <g class="desk-btn" onclick="selectPark(4)"><rect id="pr-4" x="10" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-4" x="36" y="98"  text-anchor="middle" class="pnum">P5</text><text id="pp-4" x="36" y="110" text-anchor="middle" class="dperson"></text></g>
             <g class="desk-btn" onclick="selectPark(5)"><rect id="pr-5" x="70" y="86"  width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-5" x="96" y="98"  text-anchor="middle" class="pnum">P6</text><text id="pp-5" x="96" y="110" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(6)"><rect id="pr-6" x="10" y="124" width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-6" x="36" y="136" text-anchor="middle" class="pnum">P7</text><text id="pp-6" x="36" y="148" text-anchor="middle" class="dperson"></text></g>
-            <g class="desk-btn" onclick="selectPark(7)"><rect id="pr-7" x="70" y="124" width="52" height="30" rx="3" class="park-bg-free dbox"/><text id="pn-7" x="96" y="136" text-anchor="middle" class="pnum">P8</text><text id="pp-7" x="96" y="148" text-anchor="middle" class="dperson"></text></g>
-            <text x="122" y="159" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">P</text>
+            <g class="desk-btn" onclick="selectPark(6)"><rect id="pr-6" x="10" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-6" x="36" y="136" text-anchor="middle" class="pnum">P7</text><text id="pp-6" x="36" y="148" text-anchor="middle" class="dperson"></text></g>
+            <g class="desk-btn" onclick="selectPark(7)"><rect id="pr-7" x="88" y="142" width="70" height="36" rx="3" class="park-bg-free dbox"/><text id="pn-7" x="96" y="136" text-anchor="middle" class="pnum">P8</text><text id="pp-7" x="96" y="148" text-anchor="middle" class="dperson"></text></g>
+            <text x="158" y="187" text-anchor="end" font-size="8" fill="#d1d5db" font-family="Arial">P</text>
           </svg>
         </div>
       </div>
@@ -508,6 +501,25 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
       <button class="btn btn-primary" onclick="saveFloor('park')">Spremi</button>
       <button class="btn btn-secondary" onclick="closeModal('floorpark')">Odustani</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL POSTAVKE -->
+<div class="modal-overlay" id="modal-postavke">
+  <div class="modal" style="max-width:340px;">
+    <h2>⚙️ Postavke</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
+      <button class="postavke-btn" onclick="closeModal('postavke');openModal('people')">
+        <span>👥</span><div><strong>Osobe</strong><p>Upravljanje popisom zaposlenika</p></div>
+      </button>
+      <button class="postavke-btn" onclick="closeModal('postavke');openModal('desks')">
+        <span>🪑</span><div><strong>Stolovi</strong><p>Nazivi i broj radnih stolova</p></div>
+      </button>
+      <button class="postavke-btn" onclick="closeModal('postavke');openModal('parking')">
+        <span>🚗</span><div><strong>Parking</strong><p>Nazivi i broj parkirnih mjesta</p></div>
+      </button>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('postavke')">Zatvori</button></div>
   </div>
 </div>
 
@@ -623,18 +635,19 @@ function setFloorDay(day){
 
 // ── STATUS KARTICE ──
 function updateCards(){
-  const t=new Date(),ts=ds(t),tom=nextWork(t),toms=ds(tom);
-  function cf(data,names,s){let x=0;names.forEach((_,i)=>{if(data[`${s}_${i}`])x++;});return{free:names.length-x,taken:x};}
-  // stolovi danas
-  if(isWork(t)){const{free,taken}=cf(deskData,deskNames,ts);document.getElementById('dt-free').textContent=free;document.getElementById('dt-taken').textContent=taken;document.getElementById('card-desk-today').style.borderLeftColor=taken/deskNames.length>=.8?'#ef4444':taken/deskNames.length>=.5?'#f59e0b':'#22c55e';}
-  else{document.getElementById('dt-free').textContent='—';document.getElementById('dt-taken').textContent='—';}
-  // parking danas
-  if(isWork(t)){const{free,taken}=cf(parkData,parkNames,ts);document.getElementById('pt-free').textContent=free;document.getElementById('pt-taken').textContent=taken;document.getElementById('card-park-today').style.borderLeftColor=taken/parkNames.length>=.8?'#ef4444':taken/parkNames.length>=.5?'#f59e0b':'#065f46';}
-  else{document.getElementById('pt-free').textContent='—';document.getElementById('pt-taken').textContent='—';}
-  // stolovi sutra
-  {const{free,taken}=cf(deskData,deskNames,toms);document.getElementById('dm-free').textContent=free;document.getElementById('dm-taken').textContent=taken;document.getElementById('lbl-desk-tom').textContent=`🪑 ${DAYS_F[tom.getDay()].slice(0,3)} ${tom.getDate()}.${tom.getMonth()+1}.`;}
-  // parking sutra
-  {const{free,taken}=cf(parkData,parkNames,toms);document.getElementById('pm-free').textContent=free;document.getElementById('pm-taken').textContent=taken;document.getElementById('lbl-park-tom').textContent=`🚗 ${DAYS_F[tom.getDay()].slice(0,3)} ${tom.getDate()}.${tom.getMonth()+1}.`;}
+  var t=new Date(),ts=ds(t),tom=nextWork(t),toms=ds(tom);
+  function cf(data,names,s){var x=0;names.forEach(function(_,i){if(data[s+'_'+i])x++;});return names.length-x;}
+  if(isWork(t)){
+    document.getElementById('dt-free').textContent=cf(deskData,deskNames,ts);
+    document.getElementById('pt-free').textContent=cf(parkData,parkNames,ts);
+  }else{
+    document.getElementById('dt-free').textContent='--';
+    document.getElementById('pt-free').textContent='--';
+  }
+  document.getElementById('dm-free').textContent=cf(deskData,deskNames,toms);
+  document.getElementById('pm-free').textContent=cf(parkData,parkNames,toms);
+  var lbl=document.getElementById('lbl-tomorrow-header');
+  if(lbl)lbl.textContent='Slobodna mjesta — '+DAYS_F[tom.getDay()].slice(0,3)+' '+tom.getDate()+'.'+(tom.getMonth()+1)+'.';
 }
 
 // ── TLOCRT UPDATE ──
