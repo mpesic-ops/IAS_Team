@@ -7,24 +7,17 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-// ================================================================
-  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA IZ KORAKA 5:
- // Import the functions you need from the SDKs you need
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
-  authDomain: "ias-shared-desk.firebaseapp.com",
-  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "ias-shared-desk",
-  storageBucket: "ias-shared-desk.firebasestorage.app",
-  messagingSenderId: "752309546769",
-  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+    authDomain: "ias-shared-desk.firebaseapp.com",
+    databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "ias-shared-desk",
+    storageBucket: "ias-shared-desk.firebasestorage.app",
+    messagingSenderId: "752309546769",
+    appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+  };
 
-  // ================================================================
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
   window._fbSet    = (path, value) => set(ref(db, path), value);
