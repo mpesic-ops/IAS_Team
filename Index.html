@@ -5,25 +5,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shared Desk</title>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { initializeApp }                                from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+                                                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+  // ================================================================
+  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
   const firebaseConfig = {
-    apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
-    authDomain: "ias-shared-desk.firebaseapp.com",
-    databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "ias-shared-desk",
-    storageBucket: "ias-shared-desk.firebasestorage.app",
-    messagingSenderId: "752309546769",
-    appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
-  };
+  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+  authDomain: "ias-shared-desk.firebaseapp.com",
+  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ias-shared-desk",
+  storageBucket: "ias-shared-desk.firebasestorage.app",
+  messagingSenderId: "752309546769",
+  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
+  // ================================================================
+  // WHITELIST — dodajte Gmail adrese korisnika koji smiju pristupiti:
+  const ALLOWED_EMAILS = [
+    "mpesic@gmail.com",
+    "rmarusic@gmail.com"
+    "ttopolovac@gmail.com"
+  ];
+  // ================================================================
+
+  const app      = initializeApp(firebaseConfig);
+  const db       = getDatabase(app);
+  const auth     = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
   window._fbSet    = (path, value) => set(ref(db, path), value);
   window._fbListen = (path, cb)    => onValue(ref(db, path), snap => cb(snap.val()));
-  window._fbReady  = true;
-  window.dispatchEvent(new Event('firebase-ready'));
+  window._fbSignIn  = () => signInWithPopup(auth, provider);
+  window._fbSignOut = () => signOut(auth);
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      if (ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
+        // Dopušten pristup
+        window._fbReady = true;
+        window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
+        window.dispatchEvent(new Event('firebase-ready'));
+      } else {
+        // Email nije na whitlisti
+        signOut(auth);
+        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
+      }
+    } else {
+      // Nije prijavljen
+      window.dispatchEvent(new Event('auth-needed'));
+    }
+  });
 </script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,6 +69,33 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; font-size: 13px; }
 @keyframes spin { to { transform:rotate(360deg); } }
 #connectingOverlay p { font-size:14px;color:#374151;font-weight:600; }
 #connectingOverlay small { font-size:11px;color:#9ca3af;text-align:center;max-width:300px; }
+
+/* LOGIN EKRAN */
+#loginOverlay { position:fixed;inset:0;background:linear-gradient(135deg,#1a56a0 0%,#065f46 100%);z-index:998;display:flex;align-items:center;justify-content:center;padding:20px; }
+#loginOverlay.hidden { display:none; }
+.login-box { background:white;border-radius:16px;padding:40px 36px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.login-logo { font-size:48px;margin-bottom:12px; }
+.login-box h1 { font-size:22px;font-weight:bold;color:#1a56a0;margin-bottom:6px; }
+.login-box p  { font-size:13px;color:#6b7280;margin-bottom:28px; }
+.google-btn { display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:12px 20px;border:2px solid #e5e7eb;border-radius:8px;background:white;font-size:14px;font-weight:600;color:#374151;cursor:pointer;transition:all .2s; }
+.google-btn:hover { border-color:#1a56a0;background:#f8faff;box-shadow:0 2px 8px rgba(26,86,160,.15); }
+.google-btn svg { width:20px;height:20px;flex-shrink:0; }
+.login-note { margin-top:20px;font-size:11px;color:#9ca3af; }
+/* DENIED EKRAN */
+#deniedOverlay { position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px; }
+#deniedOverlay.hidden { display:none; }
+.denied-box { background:white;border-radius:16px;padding:36px;max-width:360px;width:100%;text-align:center; }
+.denied-box h2 { color:#dc2626;font-size:18px;margin-bottom:10px; }
+.denied-box p  { font-size:13px;color:#6b7280;margin-bottom:16px; }
+.denied-email { background:#fee2e2;color:#dc2626;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;margin-bottom:20px;display:inline-block; }
+.try-other-btn { padding:8px 20px;background:#e5e7eb;color:#374151;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer; }
+.try-other-btn:hover { background:#d1d5db; }
+/* USER INFO */
+.user-info { display:flex;align-items:center;gap:8px;margin-left:auto; }
+.user-avatar { width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.5); }
+.user-name { font-size:11px;color:rgba(255,255,255,.9);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.signout-btn { padding:4px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.4);background:transparent;color:white;font-size:11px;cursor:pointer; }
+.signout-btn:hover { background:rgba(255,255,255,.15); }
 
 #syncStatus { position:fixed;bottom:12px;right:12px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;z-index:900;pointer-events:none;transition:all .3s; }
 #syncStatus.syncing { background:#fef3c7;color:#92400e;border:1px solid #fde68a; }
@@ -182,7 +243,40 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 </head>
 <body>
 
-<div id="connectingOverlay">
+<!-- LOGIN EKRAN -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">📋</div>
+    <h1>Shared Desk</h1>
+    <p>Prijavite se za pristup rezervacijama stolova i parkinga.</p>
+    <button class="google-btn" onclick="window._fbSignIn()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Prijavi se s Googleom
+    </button>
+    <p class="login-note">Pristup imaju samo ovlašteni korisnici.</p>
+  </div>
+</div>
+
+<!-- DENIED EKRAN -->
+<div id="deniedOverlay" class="hidden">
+  <div class="denied-box">
+    <div style="font-size:48px;margin-bottom:12px;">🚫</div>
+    <h2>Pristup odbijen</h2>
+    <p>Vaš Google račun nije na popisu ovlaštenih korisnika.</p>
+    <div class="denied-email" id="deniedEmail"></div>
+    <br>
+    <button class="try-other-btn" onclick="window._fbSignOut();document.getElementById('deniedOverlay').classList.add('hidden');">
+      Pokušaj s drugim računom
+    </button>
+  </div>
+</div>
+
+<div id="connectingOverlay" class="hidden">
   <div class="spinner"></div>
   <p>Spajanje na bazu podataka...</p>
   <small>Ako ovo traje dulje od 15 sekundi, provjerite firebaseConfig u HTML datoteci.</small>
@@ -196,6 +290,11 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   <button onclick="openModal('people')">👥 Osobe</button>
   <button onclick="openModal('desks')">🪑 Stolovi</button>
   <button onclick="openModal('parking')">🚗 Parking</button>
+  <div class="user-info">
+    <img class="user-avatar" id="userAvatar" src="" alt="" style="display:none;">
+    <span class="user-name" id="userName"></span>
+    <button class="signout-btn" onclick="window._fbSignOut()">Odjava</button>
+  </div>
 </div>
 
 <!-- STATUS: stolovi danas | parking danas | stolovi sutra | parking sutra -->
@@ -696,8 +795,35 @@ function init(){
   MONTHS.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;if(i===today.getMonth())o.selected=true;mS.appendChild(o);});
   for(let y=2024;y<=2028;y++){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===today.getFullYear())o.selected=true;yS.appendChild(o);}
   rebuild();
-  if(window._fbReady)initFB();
-  else{window.addEventListener('firebase-ready',initFB);setTimeout(()=>{if(!fbReady){document.getElementById('connectingOverlay').classList.add('hidden');setSS('error','✗ Firebase nije spojen');}},15000);}
+
+  // Auth eventi
+  window.addEventListener('auth-needed', ()=>{
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('connectingOverlay').classList.add('hidden');
+  });
+  window.addEventListener('auth-denied', e=>{
+    document.getElementById('deniedEmail').textContent=e.detail;
+    document.getElementById('deniedOverlay').classList.remove('hidden');
+    document.getElementById('loginOverlay').classList.add('hidden');
+  });
+  window.addEventListener('firebase-ready', ()=>{
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('deniedOverlay').classList.add('hidden');
+    // Prikaz korisnika u top baru
+    if(window._fbUser){
+      document.getElementById('userName').textContent=window._fbUser.name||window._fbUser.email;
+      if(window._fbUser.photo){const av=document.getElementById('userAvatar');av.src=window._fbUser.photo;av.style.display='block';}
+    }
+    initFB();
+  });
+
+  // Ako Firebase nije ni krenuo (greška konfiguracije)
+  setTimeout(()=>{
+    if(!fbReady && document.getElementById('loginOverlay').classList.contains('hidden')){
+      document.getElementById('connectingOverlay').classList.remove('hidden');
+      setTimeout(()=>{if(!fbReady){document.getElementById('connectingOverlay').classList.add('hidden');setSS('error','✗ Firebase nije spojen');}},15000);
+    }
+  },2000);
 }
 init();
 </script>
