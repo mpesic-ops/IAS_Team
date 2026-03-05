@@ -49,7 +49,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -457,7 +457,11 @@ body { font-family: Arial, sans-serif; background: var(--bg); font-size: 13px; c
 
 /* TLOCRT */
 .floorplan-wrap { padding:12px;background:var(--bg); }
-.floor-day-toggle { display:flex;justify-content:flex-start;gap:0;margin-bottom:8px;padding-left:0; }
+
+/* Toggle wrapper — poravnat s tlocrtom */
+.toggle-wrap { width:506px;max-width:100%; }
+.floor-day-toggle { display:flex;justify-content:center;gap:0;margin-bottom:8px; }
+
 .day-btn { padding:6px 22px;border:1.5px solid var(--day-btn-border);background:var(--day-btn-bg);color:var(--day-btn-color);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s; }
 .day-btn:first-child { border-radius:6px 0 0 6px;border-right:none; }
 .day-btn:last-child  { border-radius:0 6px 6px 0; }
@@ -590,9 +594,11 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   .avail-block { width:auto;flex:1;min-width:140px;padding:10px 12px; }
   .avail-num { font-size:18px; }
   .floorplan-container { flex-direction:column; }
+  .toggle-wrap { width:100%; }
   .floorplan-container > div:last-child { flex-direction:row !important;flex-wrap:nowrap;gap:8px;width:100%;align-items:stretch; }
   .floorplan-container > div:last-child .room { flex:1 1 0;min-width:0;width:0;display:flex;flex-direction:column; }
-  .floorplan-container > div:last-child .room .room-body { flex:1; }
+  .floorplan-container > div:last-child .room .room-body { flex:1;display:flex;flex-direction:column; }
+  .floorplan-container > div:last-child .room .room-body .floor-svg { flex:1;width:100% !important;height:auto !important; }
   .room { width:100% !important; }
   .floor-svg { width:100% !important;height:auto !important; }
   td.cell { min-width:60px; }
@@ -690,7 +696,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
     Desna kolona 3C:  x=162, w=58 (malo šira za vizualni balans desne strane)
     Ulaz: centriran između stola 13 (top=y13) i 14 (bottom=y14+30), sredina tih dvaju
   -->
-  <div style="max-width:fit-content;">
+  <div class="toggle-wrap">
     <div class="floor-day-toggle">
       <button class="day-btn active" id="btn-today"    onclick="setFloorDay('today')">📅 Danas</button>
       <button class="day-btn"        id="btn-tomorrow" onclick="setFloorDay('tomorrow')">📅 Sutra</button>
@@ -834,7 +840,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   <div class="table-wrap"><table id="deskTable"></table></div>
   <span class="section-label park">🚗 Parkirna mjesta</span>
   <div class="table-wrap"><table id="parkTable"></table></div>
-  <p class="info">💡 Vikendi i praznici isključeni. Danas označen žuto.</p>
+  <p class="info">💡 Vikendi i praznici isključeni. Danas označen <span id="today-color-label">žuto</span>.</p>
 </div>
 
 <!-- MODAL stol -->
@@ -1218,7 +1224,13 @@ function rebuild(){const m=parseInt(document.getElementById('monthSel').value),y
 
 
 function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t==='default'?'':t);
+  if(t==='default'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme',t);}
+  var lbl=document.getElementById('today-color-label');
+  if(lbl){
+    if(t==='dark')lbl.textContent='ljubičasto';
+    else if(t==='pink')lbl.textContent='ljubičasto';
+    else lbl.textContent='žuto';
+  }
   localStorage.setItem('ias-theme', t);
   // Update checkmarks
   ['default','dark','pink'].forEach(function(n){
