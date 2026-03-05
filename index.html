@@ -51,7 +51,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
- const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -76,7 +76,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // Dohvati sve korisnike iz Firestore kolekcije allowed_users
   async function fetchAllUsers() {
     const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
-    return snapshot.docs.map(d => ({ id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true || d.data().Admin===true }));
+    return snapshot.docs.filter(d => d.data().email||d.data().Email).map(d => ({ id: d.id, email: (d.data().email||d.data().Email||'').toLowerCase(), admin: d.data().admin===true || d.data().Admin===true }));
   }
 
   // Provjeri pristup i admin status
@@ -107,7 +107,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // Dohvati listu korisnika (za prikaz u modalu)
   window._fsGetUsers = async () => {
     const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
-    return snapshot.docs.map(d => ({ id: d.id, email: d.data().email, admin: d.data().admin===true || d.data().Admin===true }));
+    return snapshot.docs.filter(d => d.data().email||d.data().Email).map(d => ({ id: d.id, email: d.data().email||d.data().Email, admin: d.data().admin===true || d.data().Admin===true }));
   };
 
   // Ažuriraj admin status
@@ -978,15 +978,21 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <div class="modal-overlay" id="modal-korisnici">
   <div class="modal" style="max-width:460px;">
     <h2>🔐 Upravljanje pristupom</h2>
-    <div class="add-single-row" style="margin-bottom:8px;">
-      <input type="text" id="newUserEmail" placeholder="email@gmail.com..." style="flex:1;">
-      <label style="display:flex;align-items:center;gap:4px;padding:0 8px;font-size:12px;white-space:nowrap;">
-        <input type="checkbox" id="newUserAdmin"> Admin
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:600;color:var(--body-text);display:block;margin-bottom:4px;">
+        Email adrese (jedna po redu ili odvojene zarezom):
       </label>
-      <button onclick="addUserAccess()">+ Dodaj</button>
+      <textarea id="newUserEmails" rows="3" placeholder="ana@gmail.com&#10;marko@gmail.com&#10;..." style="width:100%;padding:7px 10px;border:1px solid var(--input-border);border-radius:6px;font-size:12px;color:var(--input-color);background:var(--input-bg);resize:vertical;font-family:Arial,sans-serif;"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;color:var(--body-text);">
+          <input type="checkbox" id="newUserAdmin"> Dodaj kao Admin
+        </label>
+        <button class="btn btn-primary" style="margin-left:auto;" onclick="addUserAccess()">+ Dodaj korisnike</button>
+      </div>
     </div>
-    <div id="userAccessList" class="items-list" style="max-height:300px;"></div>
-    <p id="userAccessMsg" style="font-size:11px;color:var(--muted-text);min-height:18px;margin-top:4px;"></p>
+    <div style="font-size:11px;font-weight:600;color:var(--body-text);margin-bottom:6px;">Trenutni korisnici:</div>
+    <div id="userAccessList" class="items-list" style="max-height:260px;"></div>
+    <p id="userAccessMsg" style="font-size:11px;min-height:18px;margin-top:4px;"></p>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('korisnici')">Zatvori</button>
     </div>
@@ -1359,28 +1365,55 @@ async function renderUserList(){
 }
 
 async function addUserAccess(){
-  var emailInput = document.getElementById('newUserEmail');
+  var textarea   = document.getElementById('newUserEmails');
   var adminCheck = document.getElementById('newUserAdmin');
   var msg        = document.getElementById('userAccessMsg');
-  var email      = emailInput.value.trim().toLowerCase();
-  if(!email || !email.includes('@')){
-    msg.textContent = '⚠️ Unesite valjanu email adresu.';
+
+  // Podijeli po novom redu ili zarezu, očisti praznine
+  var raw    = textarea.value.replace(/,/g, '
+');
+  var emails = raw.split('
+').map(e => e.trim().toLowerCase()).filter(e => e.length > 0);
+
+  if(emails.length === 0){
+    msg.textContent = '⚠️ Unesite barem jednu email adresu.';
     msg.style.color = '#dc2626';
     return;
   }
-  msg.textContent = 'Dodavanje...';
-  msg.style.color = 'var(--muted-text)';
-  try {
-    await window._fsAddUser(email, adminCheck.checked);
-    emailInput.value = '';
-    adminCheck.checked = false;
-    msg.textContent = '✓ Korisnik dodan.';
-    msg.style.color = '#16a34a';
-    await renderUserList();
-  } catch(e) {
-    msg.textContent = '⚠️ ' + (e.message || 'Greška pri dodavanju.');
+
+  // Provjeri format svih emailova
+  var invalid = emails.filter(e => !e.includes('@') || !e.includes('.'));
+  if(invalid.length > 0){
+    msg.textContent = '⚠️ Nevaljani email: ' + invalid.join(', ');
     msg.style.color = '#dc2626';
+    return;
   }
+
+  msg.textContent = 'Dodavanje ' + emails.length + ' korisnika...';
+  msg.style.color = 'var(--muted-text)';
+
+  var added = 0, skipped = 0, errors = 0;
+  for(var i = 0; i < emails.length; i++){
+    try {
+      await window._fsAddUser(emails[i], adminCheck.checked);
+      added++;
+    } catch(e) {
+      if(e.message && e.message.includes('već postoji')) skipped++;
+      else errors++;
+    }
+  }
+
+  textarea.value = '';
+  adminCheck.checked = false;
+
+  var parts = [];
+  if(added   > 0) parts.push('✓ Dodano: ' + added);
+  if(skipped > 0) parts.push('⚠️ Već postoji: ' + skipped);
+  if(errors  > 0) parts.push('✗ Greška: ' + errors);
+  msg.textContent = parts.join('  |  ');
+  msg.style.color = errors > 0 ? '#dc2626' : added > 0 ? '#16a34a' : '#d97706';
+
+  await renderUserList();
 }
 
 async function removeUser(docId, email){
