@@ -292,8 +292,8 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   .avail-block { width:auto;flex:1;min-width:140px;padding:10px 12px; }
   .avail-num { font-size:18px; }
   .floorplan-container { flex-direction:column; }
-  .floorplan-container > div:last-child { flex-direction:row !important;flex-wrap:wrap;gap:8px; }
-  .floorplan-container > div:last-child .room { flex:1;min-width:0; }
+  .floorplan-container > div:last-child { flex-direction:row !important;flex-wrap:nowrap;gap:8px;width:100%; }
+  .floorplan-container > div:last-child .room { flex:1 1 0;min-width:0;width:0; }
   .room { width:100% !important; }
   .floor-svg { width:100% !important;height:auto !important; }
   td.cell { min-width:60px; }
