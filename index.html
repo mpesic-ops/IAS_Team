@@ -51,7 +51,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-   const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -1369,22 +1369,19 @@ async function addUserAccess(){
   var adminCheck = document.getElementById('newUserAdmin');
   var msg        = document.getElementById('userAccessMsg');
 
-  // Podijeli po novom redu ili zarezu, očisti praznine
-  var raw    = textarea.value.replace(/,/g, '
-');
-  var emails = raw.split('
-').map(e => e.trim().toLowerCase()).filter(e => e.length > 0);
+  var raw    = textarea.value.replace(/[,;]+/g, ' ');
+  var parts  = raw.split(/\s+/);
+  var emails  = [];
+  var invalid = [];
+  parts.forEach(function(p){
+    p = p.trim().toLowerCase();
+    if(!p) return;
+    if(p.indexOf('@') > 0 && p.indexOf('.') > 0) emails.push(p);
+    else invalid.push(p);
+  });
 
   if(emails.length === 0){
-    msg.textContent = '⚠️ Unesite barem jednu email adresu.';
-    msg.style.color = '#dc2626';
-    return;
-  }
-
-  // Provjeri format svih emailova
-  var invalid = emails.filter(e => !e.includes('@') || !e.includes('.'));
-  if(invalid.length > 0){
-    msg.textContent = '⚠️ Nevaljani email: ' + invalid.join(', ');
+    msg.textContent = 'Unesite barem jednu email adresu.';
     msg.style.color = '#dc2626';
     return;
   }
@@ -1398,7 +1395,7 @@ async function addUserAccess(){
       await window._fsAddUser(emails[i], adminCheck.checked);
       added++;
     } catch(e) {
-      if(e.message && e.message.includes('već postoji')) skipped++;
+      if(e.message && e.message.indexOf('vec postoji') >= 0) skipped++;
       else errors++;
     }
   }
@@ -1406,12 +1403,12 @@ async function addUserAccess(){
   textarea.value = '';
   adminCheck.checked = false;
 
-  var parts = [];
-  if(added   > 0) parts.push('✓ Dodano: ' + added);
-  if(skipped > 0) parts.push('⚠️ Već postoji: ' + skipped);
-  if(errors  > 0) parts.push('✗ Greška: ' + errors);
-  msg.textContent = parts.join('  |  ');
-  msg.style.color = errors > 0 ? '#dc2626' : added > 0 ? '#16a34a' : '#d97706';
+  var result = 'Dodano: ' + added;
+  if(skipped > 0) result += '  |  Vec postoji: ' + skipped;
+  if(invalid.length > 0) result += '  |  Nevaljano: ' + invalid.join(', ');
+  if(errors > 0) result += '  |  Greska: ' + errors;
+  msg.textContent = result;
+  msg.style.color = added > 0 ? '#16a34a' : '#dc2626';
 
   await renderUserList();
 }
