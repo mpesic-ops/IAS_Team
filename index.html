@@ -51,7 +51,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
- const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -1343,10 +1343,10 @@ async function renderUserList(){
         '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' +
           '<label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;">' +
             '<input type="checkbox" ' + (u.admin?'checked':'') + ' ' + (isMe?'disabled':'') +
-            ' onchange="toggleAdmin('' + u.id + '',this.checked)"> Admin' +
+            ' onchange="toggleAdmin(\'' + u.id + '\',this.checked)"> Admin' +
           '</label>' +
           (isMe ? '' :
-            '<button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="removeUser('' + u.id + '','' + u.email + '')">Ukloni</button>'
+            '<button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="removeUser(\'' + u.id + '\',\'' + u.email + '\')">Ukloni</button>'
           ) +
         '</div>';
       list.appendChild(row);
