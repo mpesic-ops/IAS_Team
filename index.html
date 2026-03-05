@@ -62,7 +62,6 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // ================================================================
   // WHITELIST — dodajte Gmail adrese korisnika koji smiju pristupiti:
   const ALLOWED_EMAILS = [
-    "mpesic@gmail.com",
     "rmarusic@gmail.com",
     "ttopolovac@gmail.com",
     "lolchina@gmail.com"
@@ -293,6 +292,8 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   .avail-block { width:auto;flex:1;min-width:140px;padding:10px 12px; }
   .avail-num { font-size:18px; }
   .floorplan-container { flex-direction:column; }
+  .floorplan-container > div:last-child { flex-direction:row !important;flex-wrap:wrap;gap:8px; }
+  .floorplan-container > div:last-child .room { flex:1;min-width:0; }
   .room { width:100% !important; }
   .floor-svg { width:100% !important;height:auto !important; }
   td.cell { min-width:60px; }
@@ -681,6 +682,7 @@ function showMainTab(t){
   document.getElementById('tab-table').style.display=t==='table'?'block':'none';
   document.querySelectorAll('.main-tab').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+t+"'")));
   if(t==='floorplan')updateFloor();
+  if(t==='table')setTimeout(scrollToToday,50);
 }
 
 // ── DAN TOGGLE ──
@@ -842,6 +844,22 @@ function makeSelect(data,key,isPark){
   });
   return sel;
 }
+function scrollToToday(){
+  // Scroll tablica da danas bude prva vidljiva kolona (odmah do row-labela)
+  ['deskTable','parkTable'].forEach(function(tid){
+    var table=document.getElementById(tid);
+    if(!table)return;
+    var todayTh=table.querySelector('.today-col');
+    if(!todayTh)return;
+    var wrap=table.closest('.table-wrap');
+    if(!wrap)return;
+    // Pozicija today kolone unutar tablice minus širina row-labela
+    var labelWidth=110; // min-width row-label
+    var scrollTo=todayTh.offsetLeft-labelWidth;
+    wrap.scrollLeft=Math.max(0,scrollTo);
+  });
+}
+
 function buildTable(tid,names,data,isPark,wdays,tStr,y,m){
   const t=document.getElementById(tid);t.innerHTML='';
   const hc=isPark?'park-header':'',dc=isPark?'park-date':'';
@@ -859,7 +877,7 @@ function buildTable(tid,names,data,isPark,wdays,tStr,y,m){
 }
 function sRD(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value);buildTable('deskTable',deskNames,deskData,false,workdays(y,m),todayStr(),y,m);}
 function sRP(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value);buildTable('parkTable',parkNames,parkData,true,workdays(y,m),todayStr(),y,m);}
-function rebuild(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value),ts=todayStr(),wd=workdays(y,m);buildTable('deskTable',deskNames,deskData,false,wd,ts,y,m);buildTable('parkTable',parkNames,parkData,true,wd,ts,y,m);updateCards();updateFloor();}
+function rebuild(){const m=parseInt(document.getElementById('monthSel').value),y=parseInt(document.getElementById('yearSel').value),ts=todayStr(),wd=workdays(y,m);buildTable('deskTable',deskNames,deskData,false,wd,ts,y,m);buildTable('parkTable',parkNames,parkData,true,wd,ts,y,m);updateCards();updateFloor();setTimeout(scrollToToday,50);}
 
 function init(){
   const today=new Date(),mS=document.getElementById('monthSel'),yS=document.getElementById('yearSel');
