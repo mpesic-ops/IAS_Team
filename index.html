@@ -46,11 +46,12 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   import { getDatabase, ref, set, onValue }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
                                                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs }           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where }
+                                                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-const firebaseConfig = {
+ const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -72,33 +73,62 @@ const firebaseConfig = {
   window._fbSignIn  = () => signInWithPopup(auth, provider);
   window._fbSignOut = () => signOut(auth);
 
-  // Dohvati whitelist iz Firestore kolekcije allowed_users
-  async function isAllowed(email) {
+  // Dohvati sve korisnike iz Firestore kolekcije allowed_users
+  async function fetchAllUsers() {
+    const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
+    return snapshot.docs.map(d => ({ id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true }));
+  }
+
+  // Provjeri pristup i admin status
+  async function checkAccess(email) {
     try {
-      const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
-      const emails   = snapshot.docs.map(d => (d.data().email || '').toLowerCase());
-      return emails.includes(email.toLowerCase());
-    } catch (e) {
-      console.error('Firestore whitelist error:', e);
-      return false;
+      const users = await fetchAllUsers();
+      const found = users.find(u => u.email === email.toLowerCase());
+      return found ? { allowed: true, admin: found.admin } : { allowed: false, admin: false };
+    } catch(e) {
+      console.error('Firestore error:', e);
+      return { allowed: false, admin: false };
     }
   }
 
+  // Dodaj korisnika u Firestore
+  window._fsAddUser = async (email, isAdmin) => {
+    email = email.toLowerCase().trim();
+    const users = await fetchAllUsers();
+    if (users.find(u => u.email === email)) throw new Error('Korisnik već postoji');
+    await addDoc(collection(fsdb, 'allowed_users'), { email, admin: isAdmin });
+  };
+
+  // Ukloni korisnika iz Firestorea
+  window._fsRemoveUser = async (docId) => {
+    await deleteDoc(doc(fsdb, 'allowed_users', docId));
+  };
+
+  // Dohvati listu korisnika (za prikaz u modalu)
+  window._fsGetUsers = async () => {
+    const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
+    return snapshot.docs.map(d => ({ id: d.id, email: d.data().email, admin: d.data().admin===true }));
+  };
+
+  // Ažuriraj admin status
+  window._fsSetAdmin = async (docId, isAdmin) => {
+    const { updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    await updateDoc(doc(fsdb, 'allowed_users', docId), { admin: isAdmin });
+  };
+
   onAuthStateChanged(auth, async user => {
     if (user) {
-      const allowed = await isAllowed(user.email);
+      const { allowed, admin } = await checkAccess(user.email);
       if (allowed) {
-        // Dopušten pristup
-        window._fbReady = true;
-        window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
+        window._fbReady  = true;
+        window._fbAdmin  = admin;
+        window._fbUser   = { name: user.displayName, email: user.email, photo: user.photoURL };
         window.dispatchEvent(new Event('firebase-ready'));
       } else {
-        // Email nije u Firestoreu
         signOut(auth);
         window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
       }
     } else {
-      // Nije prijavljen
       window.dispatchEvent(new Event('auth-needed'));
     }
   });
@@ -885,18 +915,26 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   <div class="modal" style="max-width:340px;">
     <h2>⚙️ Postavke</h2>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
-      <button class="postavke-btn" onclick="closeModal('postavke');openModal('people')">
-        <span>👥</span><div><strong>Osobe</strong><p>Upravljanje popisom zaposlenika</p></div>
-      </button>
-      <button class="postavke-btn" onclick="closeModal('postavke');openModal('desks')">
-        <span>🪑</span><div><strong>Stolovi</strong><p>Nazivi i broj radnih stolova</p></div>
-      </button>
-      <button class="postavke-btn" onclick="closeModal('postavke');openModal('parking')">
-        <span>🚗</span><div><strong>Parking</strong><p>Nazivi i broj parkirnih mjesta</p></div>
-      </button>
+      <!-- Vidljivo svima -->
       <button class="postavke-btn" onclick="closeModal('postavke');openModal('tema')">
         <span>🎨</span><div><strong>Tema</strong><p>Promjena boja sučelja</p></div>
       </button>
+      <!-- Vidljivo samo adminima -->
+      <div id="admin-postavke" style="display:none;flex-direction:column;gap:10px;">
+        <div style="font-size:10px;font-weight:700;color:var(--muted-text);text-transform:uppercase;letter-spacing:1px;padding:4px 0 0;">Admin opcije</div>
+        <button class="postavke-btn" onclick="closeModal('postavke');openModal('people')">
+          <span>👥</span><div><strong>Osobe</strong><p>Upravljanje popisom zaposlenika</p></div>
+        </button>
+        <button class="postavke-btn" onclick="closeModal('postavke');openModal('desks')">
+          <span>🪑</span><div><strong>Stolovi</strong><p>Nazivi i broj radnih stolova</p></div>
+        </button>
+        <button class="postavke-btn" onclick="closeModal('postavke');openModal('parking')">
+          <span>🚗</span><div><strong>Parking</strong><p>Nazivi i broj parkirnih mjesta</p></div>
+        </button>
+        <button class="postavke-btn" onclick="closeModal('postavke');openKorisnici()">
+          <span>🔐</span><div><strong>Pristup</strong><p>Upravljanje korisnicima i adminima</p></div>
+        </button>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('postavke')">Zatvori</button></div>
   </div>
@@ -934,6 +972,25 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
       </button>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('tema')">Zatvori</button></div>
+  </div>
+</div>
+
+<!-- MODAL KORISNICI -->
+<div class="modal-overlay" id="modal-korisnici">
+  <div class="modal" style="max-width:460px;">
+    <h2>🔐 Upravljanje pristupom</h2>
+    <div class="add-single-row" style="margin-bottom:8px;">
+      <input type="text" id="newUserEmail" placeholder="email@gmail.com..." style="flex:1;">
+      <label style="display:flex;align-items:center;gap:4px;padding:0 8px;font-size:12px;white-space:nowrap;">
+        <input type="checkbox" id="newUserAdmin"> Admin
+      </label>
+      <button onclick="addUserAccess()">+ Dodaj</button>
+    </div>
+    <div id="userAccessList" class="items-list" style="max-height:300px;"></div>
+    <p id="userAccessMsg" style="font-size:11px;color:var(--muted-text);min-height:18px;margin-top:4px;"></p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('korisnici')">Zatvori</button>
+    </div>
   </div>
 </div>
 <!-- MODAL OSOBE -->
@@ -1258,6 +1315,102 @@ function loadTheme(){
   applyTheme(t);
 }
 
+
+// ── UPRAVLJANJE KORISNICIMA ────────────────────────────────────────
+async function openKorisnici(){
+  openModal('korisnici');
+  await renderUserList();
+}
+
+async function renderUserList(){
+  var list = document.getElementById('userAccessList');
+  var msg  = document.getElementById('userAccessMsg');
+  list.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--muted-text);">Učitavanje...</div>';
+  try {
+    var users = await window._fsGetUsers();
+    users.sort((a,b) => a.email.localeCompare(b.email));
+    list.innerHTML = '';
+    users.forEach(function(u){
+      var row = document.createElement('div');
+      row.className = 'item-row';
+      row.style.cssText = 'justify-content:space-between;';
+      var isMe = window._fbUser && u.email.toLowerCase() === window._fbUser.email.toLowerCase();
+      row.innerHTML =
+        '<span style="font-size:12px;color:var(--body-text);flex:1;overflow:hidden;text-overflow:ellipsis;">' +
+          (u.admin ? '👑 ' : '👤 ') + u.email +
+          (isMe ? ' <span style="font-size:10px;color:var(--muted-text);">(ti)</span>' : '') +
+        '</span>' +
+        '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' +
+          '<label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer;">' +
+            '<input type="checkbox" ' + (u.admin?'checked':'') + ' ' + (isMe?'disabled':'') +
+            ' onchange="toggleAdmin('' + u.id + '',this.checked)"> Admin' +
+          '</label>' +
+          (isMe ? '' :
+            '<button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="removeUser('' + u.id + '','' + u.email + '')">Ukloni</button>'
+          ) +
+        '</div>';
+      list.appendChild(row);
+    });
+    if(users.length === 0) list.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--muted-text);">Nema korisnika.</div>';
+    if(msg) msg.textContent = '';
+  } catch(e) {
+    list.innerHTML = '<div style="padding:8px;font-size:12px;color:#dc2626;">Greška pri učitavanju.</div>';
+  }
+}
+
+async function addUserAccess(){
+  var emailInput = document.getElementById('newUserEmail');
+  var adminCheck = document.getElementById('newUserAdmin');
+  var msg        = document.getElementById('userAccessMsg');
+  var email      = emailInput.value.trim().toLowerCase();
+  if(!email || !email.includes('@')){
+    msg.textContent = '⚠️ Unesite valjanu email adresu.';
+    msg.style.color = '#dc2626';
+    return;
+  }
+  msg.textContent = 'Dodavanje...';
+  msg.style.color = 'var(--muted-text)';
+  try {
+    await window._fsAddUser(email, adminCheck.checked);
+    emailInput.value = '';
+    adminCheck.checked = false;
+    msg.textContent = '✓ Korisnik dodan.';
+    msg.style.color = '#16a34a';
+    await renderUserList();
+  } catch(e) {
+    msg.textContent = '⚠️ ' + (e.message || 'Greška pri dodavanju.');
+    msg.style.color = '#dc2626';
+  }
+}
+
+async function removeUser(docId, email){
+  if(!confirm('Ukloniti pristup za ' + email + '?')) return;
+  var msg = document.getElementById('userAccessMsg');
+  msg.textContent = 'Uklanjanje...';
+  try {
+    await window._fsRemoveUser(docId);
+    msg.textContent = '✓ Korisnik uklonjen.';
+    msg.style.color = '#16a34a';
+    await renderUserList();
+  } catch(e) {
+    msg.textContent = '⚠️ Greška pri uklanjanju.';
+    msg.style.color = '#dc2626';
+  }
+}
+
+async function toggleAdmin(docId, isAdmin){
+  var msg = document.getElementById('userAccessMsg');
+  try {
+    await window._fsSetAdmin(docId, isAdmin);
+    msg.textContent = '✓ Promjena spremljena.';
+    msg.style.color = '#16a34a';
+    await renderUserList();
+  } catch(e) {
+    msg.textContent = '⚠️ Greška pri promjeni.';
+    msg.style.color = '#dc2626';
+  }
+}
+
 function init(){
   const today=new Date(),mS=document.getElementById('monthSel'),yS=document.getElementById('yearSel');
   MONTHS.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;if(i===today.getMonth())o.selected=true;mS.appendChild(o);});
@@ -1275,6 +1428,11 @@ function init(){
     document.getElementById('loginOverlay').classList.add('hidden');
   });
   window.addEventListener('firebase-ready', ()=>{
+    // Prikaži admin opcije ako je korisnik admin
+    if(window._fbAdmin){
+      var adminDiv = document.getElementById('admin-postavke');
+      if(adminDiv) adminDiv.style.display = 'flex';
+    }
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('deniedOverlay').classList.add('hidden');
     // Prikaz korisnika u top baru
