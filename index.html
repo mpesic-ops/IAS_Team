@@ -46,12 +46,12 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   import { getDatabase, ref, set, onValue }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
                                                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where }
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where }
                                                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
+ const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -112,7 +112,6 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // Ažuriraj admin status
   window._fsSetAdmin = async (docId, isAdmin) => {
-    const { updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     await updateDoc(doc(fsdb, 'allowed_users', docId), { admin: isAdmin });
   };
 
@@ -1354,7 +1353,8 @@ async function renderUserList(){
     if(users.length === 0) list.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--muted-text);">Nema korisnika.</div>';
     if(msg) msg.textContent = '';
   } catch(e) {
-    list.innerHTML = '<div style="padding:8px;font-size:12px;color:#dc2626;">Greška pri učitavanju.</div>';
+    console.error('renderUserList error:', e);
+    list.innerHTML = '<div style="padding:8px;font-size:12px;color:#dc2626;">Greška: ' + e.message + '</div>';
   }
 }
 
