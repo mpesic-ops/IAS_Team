@@ -76,7 +76,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // Dohvati sve korisnike iz Firestore kolekcije allowed_users
   async function fetchAllUsers() {
     const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
-    return snapshot.docs.map(d => ({ id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true }));
+    return snapshot.docs.map(d => ({ id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true || d.data().Admin===true }));
   }
 
   // Provjeri pristup i admin status
@@ -107,7 +107,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // Dohvati listu korisnika (za prikaz u modalu)
   window._fsGetUsers = async () => {
     const snapshot = await getDocs(collection(fsdb, 'allowed_users'));
-    return snapshot.docs.map(d => ({ id: d.id, email: d.data().email, admin: d.data().admin===true }));
+    return snapshot.docs.map(d => ({ id: d.id, email: d.data().email, admin: d.data().admin===true || d.data().Admin===true }));
   };
 
   // Ažuriraj admin status
