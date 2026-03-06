@@ -767,6 +767,24 @@ window.addEventListener("load", function() {
 var fbReady = false;
 var unosiListener = null;
 
+var STORAGE_KEY = 'ias-godisnji-v1';
+var data = {
+  zaposlenici: [],
+  godine: [{ godina: new Date().getFullYear(), hidden: false }],
+  unosi: {},
+  praznici: {}
+};
+
+function loadData() {
+  try { var s = localStorage.getItem(STORAGE_KEY); if (s) { var d = JSON.parse(s); data = Object.assign(data, d); } } catch(e) {}
+}
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+
+
 function toggleLoginPwd() {
   var inp = document.getElementById('loginPassword');
   var btn = document.getElementById('loginPwdToggle');
@@ -834,8 +852,7 @@ async function syncZaposlenici() {
       renderUserSelect();
       renderCalendar();
       renderStats();
-      renderDanas();
-    }
+        }
   } catch(e) { console.error('Sync zaposlenici error:', e); }
 }
 
@@ -850,8 +867,7 @@ async function syncUnosi(year) {
     renderCalendar();
     renderWeek();
     renderStats();
-    renderDanas();
-  } catch(e) { console.error('Sync unosi error:', e); }
+    } catch(e) { console.error('Sync unosi error:', e); }
 }
 
 // Auth eventi
@@ -919,6 +935,7 @@ window.addEventListener('firebase-ready', async function() {
     if (avatarEl && u.photo) { avatarEl.src = u.photo; avatarEl.style.display = 'block'; }
   }
 
+  loadData();
   loadFromFirebase().then(function() {
     startUnosiListener(currentYear);
     renderAll();
@@ -973,7 +990,6 @@ function renderAll() {
   renderUserSelect();
   renderMonthTabs();
   renderStats();
-  renderDanas();
   if (window.innerWidth <= 640) {
     showTab('calendar');
   } else {
@@ -1041,7 +1057,6 @@ function init() {
   renderUserSelect();
   renderMonthTabs();
   renderStats();
-  renderDanas();
   // Na mobitelu defaultno otvori kalendar, na desktopu tjedan
   if (window.innerWidth <= 640) {
     showTab('calendar');
@@ -1275,7 +1290,6 @@ function saveUnos() {
   renderCalendar();
   renderWeek();
   renderStats();
-  renderDanas();
 }
 
 function confirmBrisi() {
@@ -1286,7 +1300,6 @@ function confirmBrisi() {
   renderCalendar();
   renderWeek();
   renderStats();
-  renderDanas();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1471,7 +1484,6 @@ function showTab(t) {
   });
   if (t==='week') renderWeek();
   if (t==='stats') renderStats();
-  if (t==='fun') renderFun();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1633,7 +1645,6 @@ function init() {
   renderMonthTabs();
   renderWeek();
   renderStats();
-  renderDanas();
   if (window.innerWidth <= 640) {
     showTab('calendar');
   } else {
