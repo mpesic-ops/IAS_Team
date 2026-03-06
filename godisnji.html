@@ -680,6 +680,78 @@ var MONTHS_FULL = ['Siječanj','Veljača','Ožujak','Travanj','Svibanj','Lipanj'
 var DAYS_S = ['Ne','Po','Ut','Sr','Če','Pe','Su'];
 var DAYS_FULL = ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'];
 var DAYS = DAYS_FULL;
+
+// ── Tipovi odsutnosti ─────────────────────────────────────────
+var VRSTE = {
+  'GO':  { label: 'GO',  emoji: '🏖️',  full: 'Godišnji odmor' },
+  'SD':  { label: 'SD',  emoji: '🤒',  full: 'Bolovanje' },
+  'SDE': { label: 'SDE', emoji: '👶',  full: 'Roditeljski dopust' },
+  'DK':  { label: 'DK',  emoji: '📋',  full: 'Državni praznik' },
+  'BO':  { label: 'BO',  emoji: '🏠',  full: 'Rad od kuće' },
+};
+
+// ── Drag select state ─────────────────────────────────────────
+var dragState = { active: false, zapIdx: null, cells: [] };
+
+// ── Unosi helpers ─────────────────────────────────────────────
+function getUnos(godina, zapIdx, ds) {
+  if (!data.unosi[godina]) return null;
+  if (!data.unosi[godina][zapIdx]) return null;
+  return data.unosi[godina][zapIdx][ds] || null;
+}
+
+function setUnos(godina, zapIdx, ds, vrsta) {
+  if (!data.unosi[godina]) data.unosi[godina] = {};
+  if (!data.unosi[godina][zapIdx]) data.unosi[godina][zapIdx] = {};
+  if (vrsta === null) {
+    delete data.unosi[godina][zapIdx][ds];
+  } else {
+    data.unosi[godina][zapIdx][ds] = vrsta;
+  }
+  saveData();
+  if (window._fbReady && window._fsSaveUnosi) {
+    window._fsSaveUnosi(godina, data.unosi[godina] || {}).catch(function(e){ console.error(e); });
+  }
+}
+
+function countDana(zapIdx, vrsta, godina) {
+  if (!data.unosi[godina] || !data.unosi[godina][zapIdx]) return 0;
+  return Object.values(data.unosi[godina][zapIdx]).filter(function(v){ return v === vrsta; }).length;
+}
+
+// ── Drag select handlers ──────────────────────────────────────
+function initDragSelect() {
+  document.addEventListener('mouseup', function() {
+    if (dragState.active) {
+      dragState.active = false;
+      dragState.cells = [];
+      dragState.zapIdx = null;
+    }
+  });
+}
+
+function onCellMouseDown(zapIdx, datum, chipEl, vrsta) {
+  dragState.active = true;
+  dragState.zapIdx = zapIdx;
+  dragState.cells = [datum];
+  chipEl.classList.add('drag-selecting');
+}
+
+function onCellMouseEnter(zapIdx, datum, chipEl, vrsta) {
+  if (!dragState.active || dragState.zapIdx !== zapIdx) return;
+  if (!dragState.cells.includes(datum)) {
+    dragState.cells.push(datum);
+    chipEl.classList.add('drag-selecting');
+  }
+}
+
+
+// ── Utility funkcije ─────────────────────────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
+function dateStr(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
+function todayStr() { var t = new Date(); return dateStr(t.getFullYear(), t.getMonth()+1, t.getDate()); }
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth();
 var currentTab = 'week';
