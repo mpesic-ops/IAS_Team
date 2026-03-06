@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="hr">
 <head>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IAS Godišnji Odmori</title>
@@ -349,105 +352,9 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 #appWrap { display:none; }
 
 </style>
-<script>
-window.addEventListener("load", function() {
-
-  // ================================================================
-  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
-    apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
-    authDomain: "ias-shared-desk.firebaseapp.com",
-    databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "ias-shared-desk",
-    storageBucket: "ias-shared-desk.firebasestorage.app",
-    messagingSenderId: "752309546769",
-    appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
-  };
-  // ================================================================
-
-  firebase.initializeApp(firebaseConfig);
-  const _auth = firebase.auth();
-  const _fsdb = firebase.firestore();
-  const _provider = new firebase.auth.GoogleAuthProvider();
-
-  window._fbSignIn        = () => _auth.signInWithPopup(_provider);
-  window._fbSignOut       = () => _auth.signOut();
-  window._fbAuth          = _auth;
-  window._fbResetPassword = (e)    => _auth.sendPasswordResetEmail(e);
-  window._fbEmailSignIn   = (e, p) => _auth.signInWithEmailAndPassword(e, p);
-
-  async function checkAccess(email) {
-    try {
-      const snap = await _fsdb.collection('allowed_users').get();
-      const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
-      if (!found) return { allowed: false, admin: false };
-      return { allowed: true, admin: found.data().admin === true || found.data().Admin === true };
-    } catch(e) { return { allowed: false, admin: false }; }
-  }
-
-  // ── Tim zaposlenici ───────────────────────────────────────────
-  window._fsGetTimClanovi  = async () => {
-    const d = await _fsdb.collection('tim_config').doc('zaposlenici').get();
-    return d.exists ? (d.data().lista || []) : [];
-  };
-  window._fsSaveTimClanovi = async (lista) =>
-    _fsdb.collection('tim_config').doc('zaposlenici').set({ lista });
-
-  // ── Godine ────────────────────────────────────────────────────
-  window._fsGetGodine  = async () => {
-    const d = await _fsdb.collection('godisnji_config').doc('godine').get();
-    return d.exists ? (d.data().lista || [{ godina: new Date().getFullYear(), hidden: false }])
-                    : [{ godina: new Date().getFullYear(), hidden: false }];
-  };
-  window._fsSaveGodine = async (lista) =>
-    _fsdb.collection('godisnji_config').doc('godine').set({ lista });
-
-  // ── Praznici ──────────────────────────────────────────────────
-  window._fsGetPraznici  = async () => {
-    const d = await _fsdb.collection('godisnji_config').doc('praznici').get();
-    return d.exists ? (d.data().overrides || {}) : {};
-  };
-  window._fsSavePraznici = async (overrides) =>
-    _fsdb.collection('godisnji_config').doc('praznici').set({ overrides });
-
-  // ── Unosi ─────────────────────────────────────────────────────
-  window._fsGetUnosi = async (godina) => {
-    const d = await _fsdb.collection('godisnji_unosi').doc(String(godina)).get();
-    return d.exists ? (d.data().unosi || {}) : {};
-  };
-  window._fsSaveUnosi = async (godina, unosi) =>
-    _fsdb.collection('godisnji_unosi').doc(String(godina)).set({ unosi });
-  window._fsListenUnosi = (godina, cb) =>
-    _fsdb.collection('godisnji_unosi').doc(String(godina)).onSnapshot(snap => {
-      cb(snap.exists ? (snap.data().unosi || {}) : {});
-    });
-
-  // ── Auth state ────────────────────────────────────────────────
-  _auth.onAuthStateChanged(function(user) {
-    if (user) {
-      checkAccess(user.email).then(function(result) {
-        if (result.allowed) {
-          window._fbReady = true;
-          window._fbAdmin = result.admin;
-          window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
-          window.dispatchEvent(new Event('firebase-ready'));
-        } else {
-          _auth.signOut();
-          window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
-        }
-      });
-    } else {
-      window.dispatchEvent(new Event('auth-needed'));
-    }
-  });
-
-});
-</script>
 
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 </head>
 <body>
 
@@ -989,6 +896,7 @@ function renderAll() {
   renderYearTabs();
   renderUserSelect();
   renderMonthTabs();
+  renderCalendar();
   renderStats();
   if (window.innerWidth <= 640) {
     showTab('calendar');
@@ -1482,6 +1390,7 @@ function showTab(t) {
   document.querySelectorAll('.main-tab').forEach(function(b,i) {
     b.classList.toggle('active', ['week','calendar','stats','fun'][i]===t);
   });
+  if (t==='calendar') renderCalendar();
   if (t==='week') renderWeek();
   if (t==='stats') renderStats();
 }
@@ -1857,5 +1766,95 @@ function addCustomPraznik() {
 // ════════════════════════════════════════════════════════════════
 </script>
 </div><!-- /appWrap -->
+<script>
+// ================================================================
+// ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
+const firebaseConfig = {
+  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+  authDomain: "ias-shared-desk.firebaseapp.com",
+  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ias-shared-desk",
+  storageBucket: "ias-shared-desk.firebasestorage.app",
+  messagingSenderId: "752309546769",
+  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+};
+// ================================================================
+
+firebase.initializeApp(firebaseConfig);
+const _auth = firebase.auth();
+const _fsdb = firebase.firestore();
+const _provider = new firebase.auth.GoogleAuthProvider();
+
+window._fbSignIn        = () => _auth.signInWithPopup(_provider);
+window._fbSignOut       = () => _auth.signOut();
+window._fbAuth          = _auth;
+window._fbResetPassword = (e)    => _auth.sendPasswordResetEmail(e);
+window._fbEmailSignIn   = (e, p) => _auth.signInWithEmailAndPassword(e, p);
+
+async function checkAccess(email) {
+  try {
+    const snap = await _fsdb.collection('allowed_users').get();
+    const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
+    if (!found) return { allowed: false, admin: false };
+    return { allowed: true, admin: found.data().admin === true || found.data().Admin === true };
+  } catch(e) { return { allowed: false, admin: false }; }
+}
+
+// ── Tim zaposlenici ───────────────────────────────────────────
+window._fsGetTimClanovi  = async () => {
+  const d = await _fsdb.collection('tim_config').doc('zaposlenici').get();
+  return d.exists ? (d.data().lista || []) : [];
+};
+window._fsSaveTimClanovi = async (lista) =>
+  _fsdb.collection('tim_config').doc('zaposlenici').set({ lista });
+
+// ── Godine ────────────────────────────────────────────────────
+window._fsGetGodine  = async () => {
+  const d = await _fsdb.collection('godisnji_config').doc('godine').get();
+  return d.exists ? (d.data().lista || [{ godina: new Date().getFullYear(), hidden: false }])
+                  : [{ godina: new Date().getFullYear(), hidden: false }];
+};
+window._fsSaveGodine = async (lista) =>
+  _fsdb.collection('godisnji_config').doc('godine').set({ lista });
+
+// ── Praznici ──────────────────────────────────────────────────
+window._fsGetPraznici  = async () => {
+  const d = await _fsdb.collection('godisnji_config').doc('praznici').get();
+  return d.exists ? (d.data().overrides || {}) : {};
+};
+window._fsSavePraznici = async (overrides) =>
+  _fsdb.collection('godisnji_config').doc('praznici').set({ overrides });
+
+// ── Unosi ─────────────────────────────────────────────────────
+window._fsGetUnosi = async (godina) => {
+  const d = await _fsdb.collection('godisnji_unosi').doc(String(godina)).get();
+  return d.exists ? (d.data().unosi || {}) : {};
+};
+window._fsSaveUnosi = async (godina, unosi) =>
+  _fsdb.collection('godisnji_unosi').doc(String(godina)).set({ unosi });
+window._fsListenUnosi = (godina, cb) =>
+  _fsdb.collection('godisnji_unosi').doc(String(godina)).onSnapshot(snap => {
+    cb(snap.exists ? (snap.data().unosi || {}) : {});
+  });
+
+// ── Auth state ────────────────────────────────────────────────
+_auth.onAuthStateChanged(function(user) {
+  if (user) {
+    checkAccess(user.email).then(function(result) {
+      if (result.allowed) {
+        window._fbReady = true;
+        window._fbAdmin = result.admin;
+        window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
+        window.dispatchEvent(new Event('firebase-ready'));
+      } else {
+        _auth.signOut();
+        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
+      }
+    });
+  } else {
+    window.dispatchEvent(new Event('auth-needed'));
+  }
+});
+</script>
 </body>
 </html>
