@@ -118,13 +118,13 @@
         window._fbReady = true;
         window._fbAdmin = admin;
         window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
-        window.dispatchEvent(new Event('firebase-ready'));
+        setTimeout(function(){ window.dispatchEvent(new Event('firebase-ready')); }, 0);
       } else {
         signOut(auth);
-        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
+        setTimeout(function(){ window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email })); }, 0);
       }
     } else {
-      window.dispatchEvent(new Event('auth-needed'));
+      setTimeout(function(){ window.dispatchEvent(new Event('auth-needed')); }, 0);
     }
   });
 </script>
