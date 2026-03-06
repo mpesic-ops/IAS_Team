@@ -14,12 +14,12 @@
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
            signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword }
                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc }
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc }
                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -53,17 +53,63 @@
   // Upravljanje korisnicima
   window._fsGetUsers = async () => {
     const snap = await getDocs(collection(fsdb, 'allowed_users'));
-    return snap.docs.filter(d=>d.data().email||d.data().Email).map(d=>({ id:d.id, email:d.data().email||d.data().Email, admin:d.data().admin===true||d.data().Admin===true }));
+    return snap.docs.filter(d=>d.data().email||d.data().Email).map(d=>({ id:d.id, email:d.data().email||d.data().Email, admin:d.data().admin===true||d.data().Admin===true, name:d.data().name||'', isNative:d.data().isNative===true }));
   };
-  window._fsAddUser = async (email, isAdmin) => {
+  window._fsSetUserName = async (docId, name) => {
+    await updateDoc(doc(fsdb, 'allowed_users', docId), { name });
+  };
+  window._fsAddUser = async (email, isAdmin, isNative=false) => {
     email = email.toLowerCase().trim();
     const users = await window._fsGetUsers();
     if (users.find(u=>u.email.toLowerCase()===email)) throw new Error('Korisnik već postoji');
-    await addDoc(collection(fsdb, 'allowed_users'), { email, admin: isAdmin });
+    await addDoc(collection(fsdb, 'allowed_users'), { email, admin: isAdmin, isNative });
   };
   window._fsRemoveUser = async (docId) => { await deleteDoc(doc(fsdb, 'allowed_users', docId)); };
   window._fsSetAdmin   = async (docId, isAdmin) => { await updateDoc(doc(fsdb, 'allowed_users', docId), { admin: isAdmin }); };
   window._fbCreateUser = async (email, pwd) => { await createUserWithEmailAndPassword(auth, email, pwd); };
+
+  // ── Tim zaposlenici (zajednička lista) ────────────────────────
+  window._fsGetTimClanovi = async () => {
+    const d = await getDoc(doc(fsdb, 'tim_config', 'zaposlenici'));
+    return d.exists() ? (d.data().lista || []) : [];
+  };
+  window._fsSaveTimClanovi = async (lista) => {
+    await setDoc(doc(fsdb, 'tim_config', 'zaposlenici'), { lista });
+  };
+
+  // ── Desk/Park nazivi ──────────────────────────────────────────
+  window._fsGetDeskNames = async () => {
+    const d = await getDoc(doc(fsdb, 'desk_config', 'stolovi'));
+    return d.exists() ? (d.data().names || []) : [];
+  };
+  window._fsSaveDeskNames = async (names) => {
+    await setDoc(doc(fsdb, 'desk_config', 'stolovi'), { names });
+  };
+  window._fsGetParkNames = async () => {
+    const d = await getDoc(doc(fsdb, 'desk_config', 'parking'));
+    return d.exists() ? (d.data().names || []) : [];
+  };
+  window._fsSaveParkNames = async (names) => {
+    await setDoc(doc(fsdb, 'desk_config', 'parking'), { names });
+  };
+
+  // ── Godine (godišnji odmori) ──────────────────────────────────
+  window._fsGetGodine = async () => {
+    const d = await getDoc(doc(fsdb, 'godisnji_config', 'godine'));
+    return d.exists() ? (d.data().lista || []) : [];
+  };
+  window._fsSaveGodine = async (lista) => {
+    await setDoc(doc(fsdb, 'godisnji_config', 'godine'), { lista });
+  };
+
+  // ── Praznici ─────────────────────────────────────────────────
+  window._fsGetPraznici = async () => {
+    const d = await getDoc(doc(fsdb, 'godisnji_config', 'praznici'));
+    return d.exists() ? (d.data().overrides || {}) : {};
+  };
+  window._fsSavePraznici = async (overrides) => {
+    await setDoc(doc(fsdb, 'godisnji_config', 'praznici'), { overrides });
+  };
 
   onAuthStateChanged(auth, async user => {
     if (user) {
@@ -286,286 +332,491 @@ body { min-height:100vh;background:#f0f2f5; }
     <div class="hub-postavke">
       <h3>⚙️ Postavke</h3>
       <div class="hub-postavke-grid">
-        <button class="hub-postavke-btn" onclick="openModal('korisnici')">
-          <span>👥</span><div><strong>Korisnici</strong><p>Upravljanje pristupom</p></div>
-        </button>
-        <button class="hub-postavke-btn" onclick="openModal('tema')">
-          <span>🎨</span><div><strong>Tema</strong><p>Promjena boja</p></div>
+        <button class="hub-postavke-btn" onclick="openModal('postavke')">
+          <span>⚙️</span><div><strong>Postavke</strong><p>Tema, zaposlenici, pristup, praznici, stolovi, godine</p></div>
         </button>
         <button class="hub-postavke-btn" onclick="changePassword()">
-          <span>🔑</span><div><strong>Lozinka</strong><p>Pošalji reset email</p></div>
+          <span>🔑</span><div><strong>Lozinka</strong><p>Pošalji reset email sebi</p></div>
         </button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL: KORISNICI -->
-<div class="modal-overlay" id="modal-korisnici">
-  <div class="modal" style="max-width:500px;">
-    <h2>👥 Upravljanje pristupom</h2>
-    <div class="tabs-inner">
-      <button class="tab-inner-btn active" id="ktab-google" onclick="switchKorisTab('google')">🔵 Google login</button>
-      <button class="tab-inner-btn" id="ktab-native" onclick="switchKorisTab('native')">🔑 Email/Password</button>
-    </div>
-    <div id="koris-tab-google">
-      <div class="form-row">
-        <label>Email adrese (jedna po redu ili zarezom):</label>
-        <textarea id="newUserEmails" rows="3" placeholder="ana@gmail.com&#10;marko@gmail.com" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:vertical;font-family:Arial,sans-serif;"></textarea>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
-          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
-            <input type="checkbox" id="newUserAdmin"> Dodaj kao Admin
-          </label>
-          <button class="btn btn-primary" style="margin-left:auto;" onclick="addUserAccess()">+ Dodaj korisnike</button>
-        </div>
-      </div>
-    </div>
-    <div id="koris-tab-native" style="display:none;">
-      <p style="font-size:11px;color:#6b7280;margin-bottom:10px;">Kreiraj korisnika s email/password prijavom.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
-        <input type="email" id="nativeEmail" placeholder="email@domena.com" style="padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
-        <div style="position:relative;">
-          <input type="password" id="nativePassword" placeholder="Lozinka (min. 6 znakova)" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
-          <button onclick="toggleNativePwd()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;" id="nativePwdToggle">👁</button>
-        </div>
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
-          <input type="checkbox" id="nativeAdmin"> Dodaj kao Admin
-        </label>
-        <button class="btn btn-primary" onclick="addNativeUser()">+ Kreiraj korisnika</button>
-      </div>
-      <p id="nativeMsg" style="font-size:11px;min-height:16px;"></p>
-      <div style="border-top:1px solid #e5e7eb;padding-top:10px;margin-top:4px;">
-        <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">Reset lozinke:</div>
-        <div style="display:flex;gap:6px;">
-          <input type="email" id="resetEmail" placeholder="email korisnika..." style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
-          <button class="btn btn-secondary" onclick="sendReset()">📧 Pošalji</button>
-        </div>
-        <p id="resetMsg" style="font-size:11px;min-height:16px;margin-top:4px;"></p>
-      </div>
-    </div>
-    <div style="font-size:11px;font-weight:600;color:#374151;margin:10px 0 6px;">Trenutni korisnici:</div>
-    <div id="userAccessList" class="items-list" style="max-height:220px;"></div>
-    <p id="userAccessMsg" style="font-size:11px;min-height:16px;margin-top:4px;"></p>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('korisnici')">Zatvori</button>
-    </div>
-  </div>
-</div>
+<!-- MODAL: POSTAVKE -->
+<div class="modal-overlay" id="modal-postavke">
+  <div class="modal" style="max-width:600px;">
+    <h2>⚙️ Postavke</h2>
 
-<!-- MODAL: TEMA -->
-<div class="modal-overlay" id="modal-tema">
-  <div class="modal" style="max-width:320px;">
-    <h2>🎨 Odabir teme (primjenjuje se na sve aplikacije)</h2>
-    <p style="font-size:11px;color:#6b7280;margin-bottom:12px;">Tema se sprema lokalno i primjenjuje na Shared Desk i Godišnje odmore.</p>
-    <button class="hub-postavke-btn" id="tema-btn-default" onclick="applyTheme('default')" style="width:100%;margin-bottom:6px;">
-      <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#1a56a0,#065f46);flex-shrink:0;"></div>
-      <div><strong style="font-size:13px;">Zadana</strong><p style="font-size:11px;color:#6b7280;">Plavo-zelena</p></div>
-      <span id="tema-check-default" style="margin-left:auto;color:#1a56a0;font-weight:bold;">✓</span>
-    </button>
-    <button class="hub-postavke-btn" id="tema-btn-dark" onclick="applyTheme('dark')" style="width:100%;margin-bottom:6px;">
-      <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#111827,#1d4ed8);flex-shrink:0;"></div>
-      <div><strong style="font-size:13px;">Tamna</strong><p style="font-size:11px;color:#6b7280;">Dark mode</p></div>
-      <span id="tema-check-dark" style="margin-left:auto;color:#1a56a0;font-weight:bold;"></span>
-    </button>
-    <button class="hub-postavke-btn" id="tema-btn-pink" onclick="applyTheme('pink')" style="width:100%;margin-bottom:6px;">
-      <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#EE2F58,#BC38E0);flex-shrink:0;"></div>
-      <div><strong style="font-size:13px;">SPAN Pink</strong><p style="font-size:11px;color:#6b7280;">Roza-ljubičasta</p></div>
-      <span id="tema-check-pink" style="margin-left:auto;color:#1a56a0;font-weight:bold;"></span>
-    </button>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('tema')">Zatvori</button></div>
+    <!-- 3 taba -->
+    <div class="tabs-inner" id="postavke-tabs">
+      <button class="tab-inner-btn active" onclick="switchPostavkeTab('opce')">🌐 Opće</button>
+      <button class="tab-inner-btn" onclick="switchPostavkeTab('desk')" id="ptab-desk-btn">📋 Shared Desk</button>
+      <button class="tab-inner-btn" onclick="switchPostavkeTab('god')" id="ptab-god-btn">🏖️ Godišnji odmori</button>
+    </div>
+
+    <!-- TAB: OPĆE -->
+    <div id="ptab-opce">
+      <!-- Tema — vidljivo svima -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted-text,#6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🎨 Tema</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="hub-postavke-btn" id="tema-btn-default" onclick="applyTheme('default')" style="border-radius:8px;">
+            <div style="width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#1a56a0,#065f46);flex-shrink:0;"></div>
+            <div><strong>Zadana</strong><p>Plavo-zelena</p></div>
+            <span id="tema-check-default" style="margin-left:auto;color:#1a56a0;font-weight:bold;">✓</span>
+          </button>
+          <button class="hub-postavke-btn" id="tema-btn-dark" onclick="applyTheme('dark')" style="border-radius:8px;">
+            <div style="width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#111827,#1d4ed8);flex-shrink:0;"></div>
+            <div><strong>Tamna</strong><p>Dark mode</p></div>
+            <span id="tema-check-dark" style="margin-left:auto;color:#1a56a0;font-weight:bold;"></span>
+          </button>
+          <button class="hub-postavke-btn" id="tema-btn-pink" onclick="applyTheme('pink')" style="border-radius:8px;">
+            <div style="width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#EE2F58,#BC38E0);flex-shrink:0;"></div>
+            <div><strong>SPAN Pink</strong><p>Roza-ljubičasta</p></div>
+            <span id="tema-check-pink" style="margin-left:auto;color:#1a56a0;font-weight:bold;"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Admin sekcija -->
+      <div id="hub-admin-sekcija" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted-text,#6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">👑 Admin</div>
+
+        <!-- Zaposlenici -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">👥 Zaposlenici (tim)</summary>
+          <div style="padding:12px 14px;">
+            <p style="font-size:11px;color:#6b7280;margin-bottom:8px;">Lista članova tima — koriste je Shared Desk i Godišnji odmori.</p>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input type="text" id="newTimClanInput" placeholder="Ime i prezime..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')addTimClan()">
+              <button class="btn btn-primary" onclick="addTimClan()">+ Dodaj</button>
+            </div>
+            <div id="timClanList" class="items-list" style="max-height:200px;"></div>
+            <p id="timClanMsg" style="font-size:11px;min-height:14px;margin-top:4px;"></p>
+          </div>
+        </details>
+
+        <!-- Pristup -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🔐 Pristup (allowed_users)</summary>
+          <div style="padding:12px 14px;">
+            <div class="tabs-inner" style="margin-bottom:10px;">
+              <button class="tab-inner-btn active" id="ktab-google" onclick="switchKorisTab('google')">🔵 Google</button>
+              <button class="tab-inner-btn" id="ktab-native" onclick="switchKorisTab('native')">🔑 Email/Password</button>
+            </div>
+            <div id="koris-tab-google">
+              <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Email adrese (jedna po redu ili zarezom):</div>
+              <textarea id="newUserEmails" rows="2" placeholder="ana@gmail.com&#10;marko@gmail.com" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:vertical;font-family:Arial,sans-serif;"></textarea>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;"><input type="checkbox" id="newUserAdmin"> Admin</label>
+                <button class="btn btn-primary" style="margin-left:auto;" onclick="addUserAccess()">+ Dodaj</button>
+              </div>
+            </div>
+            <div id="koris-tab-native" style="display:none;">
+              <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Email/Password korisnici:</div>
+              <div id="nativeUserList" class="items-list" style="max-height:120px;margin-bottom:10px;"></div>
+              <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-bottom:8px;">
+                <div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:4px;">Dodaj novog:</div>
+              </div>
+              <p style="font-size:11px;color:#6b7280;margin-bottom:8px;">Kreiraj korisnika s email/password prijavom.</p>
+              <input type="email" id="nativeEmail" placeholder="email@domena.com" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;margin-bottom:6px;">
+              <div style="position:relative;margin-bottom:6px;">
+                <input type="password" id="nativePassword" placeholder="Lozinka (min. 6 znakova)" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                <button onclick="toggleNativePwd()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;">👁</button>
+              </div>
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;margin-bottom:8px;"><input type="checkbox" id="nativeAdmin"> Admin</label>
+              <button class="btn btn-primary" onclick="addNativeUser()" style="width:100%;">+ Kreiraj korisnika</button>
+              <p id="nativeMsg" style="font-size:11px;min-height:14px;margin-top:4px;"></p>
+              <div style="border-top:1px solid #e5e7eb;padding-top:8px;margin-top:8px;">
+                <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:5px;">Reset lozinke:</div>
+                <div style="display:flex;gap:6px;">
+                  <input type="email" id="resetEmail" placeholder="email korisnika..." style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                  <button class="btn btn-secondary" onclick="sendReset()">📧 Pošalji</button>
+                </div>
+                <p id="resetMsg" style="font-size:11px;min-height:14px;margin-top:4px;"></p>
+              </div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:#374151;margin:10px 0 5px;">Trenutni korisnici s pristupom:</div>
+            <div id="userAccessList" class="items-list" style="max-height:180px;"></div>
+            <p id="userAccessMsg" style="font-size:11px;min-height:14px;margin-top:3px;"></p>
+          </div>
+        </details>
+
+        <!-- Praznici -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🎉 Državni praznici</summary>
+          <div style="padding:12px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <label style="font-size:12px;font-weight:600;">Godina:</label>
+              <select id="prazYearSel" onchange="renderHubPraznici()" style="padding:4px 8px;border-radius:5px;border:1px solid #d1d5db;font-size:12px;"></select>
+            </div>
+            <div style="font-size:11px;color:#6b7280;margin-bottom:6px;">Odznači praznike koje ne želiš prikazivati.</div>
+            <div id="prazList" class="items-list" style="max-height:220px;"></div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;">
+              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">Dodaj prilagođeni praznik:</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <input type="text" id="customPrazDatum" placeholder="dd/mm/yyyy" maxlength="10" style="width:110px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;">
+                <input type="text" id="customPrazNaziv" placeholder="Naziv praznika..." style="flex:1;min-width:120px;padding:6px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;">
+                <button class="btn btn-primary" onclick="addHubCustomPraznik()">+ Dodaj</button>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button class="btn btn-primary" onclick="saveHubPraznici()">💾 Spremi praznike</button>
+            </div>
+          </div>
+        </details>
+      </div><!-- /hub-admin-sekcija -->
+    </div><!-- /ptab-opce -->
+
+    <!-- TAB: SHARED DESK (admin) -->
+    <div id="ptab-desk" style="display:none;">
+      <div id="hub-desk-admin" style="display:none;">
+        <!-- Stolovi -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;" open>
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🪑 Stolovi</summary>
+          <div style="padding:12px 14px;">
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input type="text" id="hubNewDeskInput" placeholder="Naziv stola..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddDesk()">
+              <button class="btn btn-primary" onclick="hubAddDesk()">+ Dodaj</button>
+            </div>
+            <div id="hubDeskList" class="items-list" style="max-height:200px;"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button class="btn btn-primary" onclick="hubSaveDesks()">💾 Spremi stolove</button>
+            </div>
+          </div>
+        </details>
+        <!-- Parking -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🚗 Parking</summary>
+          <div style="padding:12px 14px;">
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input type="text" id="hubNewParkInput" placeholder="Naziv parkinga..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddPark()">
+              <button class="btn btn-primary" onclick="hubAddPark()">+ Dodaj</button>
+            </div>
+            <div id="hubParkList" class="items-list" style="max-height:200px;"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button class="btn btn-primary" onclick="hubSaveParks()">💾 Spremi parking</button>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div id="hub-desk-noadmin" style="display:none;padding:20px;text-align:center;color:#6b7280;font-size:13px;">Ove postavke može mijenjati samo admin.</div>
+    </div><!-- /ptab-desk -->
+
+    <!-- TAB: GODIŠNJI (admin) -->
+    <div id="ptab-god" style="display:none;">
+      <div id="hub-god-admin" style="display:none;">
+        <!-- Godine -->
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;" open>
+          <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">📅 Godine</summary>
+          <div style="padding:12px 14px;">
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input type="number" id="hubNewYearInput" placeholder="npr. 2026" min="2020" max="2040" style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+              <button class="btn btn-primary" onclick="hubAddYear()">+ Dodaj godinu</button>
+            </div>
+            <div id="hubYearList" class="items-list" style="max-height:200px;"></div>
+            <p id="hubYearMsg" style="font-size:11px;min-height:14px;margin-top:4px;"></p>
+          </div>
+        </details>
+      </div>
+      <div id="hub-god-noadmin" style="display:none;padding:20px;text-align:center;color:#6b7280;font-size:13px;">Ove postavke može mijenjati samo admin.</div>
+    </div><!-- /ptab-god -->
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('postavke')">Zatvori</button>
+    </div>
   </div>
 </div>
 
 <script>
-// ── AUTH EVENTI ────────────────────────────────────────────────────
-window.addEventListener('firebase-ready', function() {
-  document.getElementById('connectingOverlay').classList.add('hidden');
-  document.getElementById('loginOverlay').classList.add('hidden');
-  document.getElementById('appWrap').style.display = 'block';
-  var u = window._fbUser;
-  if (u) {
-    var firstName = u.name ? u.name.split(' ')[0] : u.email.split('@')[0];
-    document.getElementById('hubGreeting').textContent = 'Bok, ' + firstName + '! 👋';
-    document.getElementById('hubName').textContent = u.name || u.email;
-    if (u.photo) { var av = document.getElementById('hubAvatar'); av.src=u.photo; av.style.display='block'; }
-  }
-  // Sakrij admin stavke ako nije admin
-  if (!window._fbAdmin) {
-    document.querySelectorAll('.admin-only').forEach(function(el){ el.style.display='none'; });
-  }
-  loadTheme();
-});
-
-window.addEventListener('auth-needed', function() {
-  document.getElementById('connectingOverlay').classList.add('hidden');
-  document.getElementById('loginOverlay').classList.remove('hidden');
-});
-
-window.addEventListener('auth-denied', function(e) {
-  document.getElementById('connectingOverlay').classList.add('hidden');
-  document.getElementById('deniedOverlay').classList.remove('hidden');
-  var el = document.getElementById('deniedEmail');
-  if (el) el.textContent = e.detail;
-});
-
-// ── LOGIN ──────────────────────────────────────────────────────────
-function toggleLoginPwd() {
-  var inp = document.getElementById('loginPassword');
-  document.getElementById('loginPwdToggle').textContent = inp.type==='password'?'🙈':'👁';
-  inp.type = inp.type==='password'?'text':'password';
-}
-function showForgotPassword() {
-  document.getElementById('loginBox').style.display='none';
-  document.getElementById('forgotPanel').style.display='block';
-  var em = document.getElementById('loginEmail').value;
-  if (em) document.getElementById('forgotEmail').value=em;
-}
-function hideForgotPassword() {
-  document.getElementById('loginBox').style.display='block';
-  document.getElementById('forgotPanel').style.display='none';
-  document.getElementById('forgotMsg').textContent='';
-}
-async function sendForgotReset() {
-  var email=document.getElementById('forgotEmail').value.trim().toLowerCase();
-  var msg=document.getElementById('forgotMsg');
-  if(!email){msg.style.color='#dc2626';msg.textContent='⚠️ Unesite email.';return;}
-  msg.style.color='#6b7280';msg.textContent='Slanje...';
-  try { await window._fbResetPassword(email); msg.style.color='#16a34a';msg.textContent='✓ Reset email poslan!'; }
-  catch(e){ msg.style.color='#dc2626';msg.textContent='⚠️ '+(e.code==='auth/user-not-found'?'Email nije pronađen.':e.message||'Greška.'); }
-}
-async function loginWithEmail() {
-  var email=document.getElementById('loginEmail').value.trim().toLowerCase();
-  var pwd=document.getElementById('loginPassword').value;
-  var msg=document.getElementById('loginMsg');
-  if(!email||!pwd){msg.textContent='⚠️ Unesite email i lozinku.';return;}
-  msg.textContent='Prijava...';msg.style.color='#6b7280';
-  try { await window._fbEmailSignIn(email,pwd); msg.textContent=''; }
-  catch(e){
-    var err=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'Pogrešan email ili lozinka.':
-            e.code==='auth/user-not-found'?'Korisnik nije pronađen.':
-            e.code==='auth/too-many-requests'?'Previše pokušaja. Pokušajte kasnije.':'Greška pri prijavi.';
-    msg.textContent='⚠️ '+err;msg.style.color='#dc2626';
-  }
-}
-function changePassword() {
-  var u=window._fbUser;
-  if(!u){return;}
-  if(confirm('Poslati reset email na '+u.email+'?')) {
-    window._fbResetPassword(u.email)
-      .then(function(){ alert('✓ Reset email poslan na '+u.email); })
-      .catch(function(e){ alert('Greška: '+e.message); });
-  }
+// ══════════════════════════════════════════════════════
+// POSTAVKE TAB SWITCH
+// ══════════════════════════════════════════════════════
+function switchPostavkeTab(t) {
+  ['opce','desk','god'].forEach(function(n) {
+    document.getElementById('ptab-'+n).style.display = n===t?'block':'none';
+    var btn = document.querySelector('#postavke-tabs .tab-inner-btn:nth-child('+(n==='opce'?1:n==='desk'?2:3)+')');
+    if (btn) btn.classList.toggle('active', n===t);
+  });
+  if (t==='desk') { hubLoadDesks(); hubLoadParks(); }
+  if (t==='god') { hubLoadYears(); }
+  if (t==='opce' && document.getElementById('prazYearSel').innerHTML==='') { initHubPraznici(); }
 }
 
-// ── TEMA ───────────────────────────────────────────────────────────
-function applyTheme(t) {
-  localStorage.setItem('ias-tema', t);
-  ['default','dark','pink'].forEach(function(n){
-    document.getElementById('tema-check-'+n).textContent = n===t?'✓':'';
+// ══════════════════════════════════════════════════════
+// ZAPOSLENICI (TIM)
+// ══════════════════════════════════════════════════════
+var _timClanovi = [];
+
+async function loadTimClanovi() {
+  var list = document.getElementById('timClanList');
+  list.innerHTML = '<div style="font-size:11px;color:#6b7280;padding:6px;">Učitavanje...</div>';
+  try {
+    var data = await window._fsGetTimClanovi();
+    _timClanovi = data || [];
+    renderTimClanovi();
+  } catch(e) { list.innerHTML = '<div style="color:#dc2626;font-size:11px;">Greška: '+e.message+'</div>'; }
+}
+
+function renderTimClanovi() {
+  var list = document.getElementById('timClanList');
+  list.innerHTML = '';
+  if (!_timClanovi.length) {
+    list.innerHTML = '<div style="font-size:11px;color:#6b7280;padding:6px;">Nema članova tima.</div>';
+    return;
+  }
+  _timClanovi.sort(function(a,b){return (a.ime||'').localeCompare(b.ime||'');}).forEach(function(c, i) {
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = c.ime || '';
+    nameInput.style.cssText = 'flex:1;border:none;background:transparent;font-size:12px;';
+    nameInput.onchange = (function(idx){ return function(){ _timClanovi[idx].ime = this.value; }; })(i);
+    var delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-secondary';
+    delBtn.style.cssText = 'padding:2px 8px;font-size:11px;';
+    delBtn.textContent = '✕';
+    delBtn.onclick = (function(idx){ return function(){
+      if (confirm('Ukloniti '+(_timClanovi[idx].ime||'člana')+'?')) {
+        _timClanovi.splice(idx, 1);
+        renderTimClanovi();
+      }
+    }; })(i);
+    row.appendChild(nameInput); row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+  // Spremi gumb
+  var saveRow = document.createElement('div');
+  saveRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:6px;';
+  var saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.textContent = '💾 Spremi';
+  saveBtn.onclick = saveTimClanovi;
+  saveRow.appendChild(saveBtn);
+  list.appendChild(saveRow);
+}
+
+function addTimClan() {
+  var inp = document.getElementById('newTimClanInput');
+  var ime = inp.value.trim();
+  if (!ime) return;
+  _timClanovi.push({ ime: ime });
+  inp.value = '';
+  renderTimClanovi();
+}
+
+async function saveTimClanovi() {
+  var msg = document.getElementById('timClanMsg');
+  msg.textContent = 'Spremanje...'; msg.style.color = '#6b7280';
+  try {
+    await window._fsSaveTimClanovi(_timClanovi);
+    msg.textContent = '✓ Spremljeno'; msg.style.color = '#16a34a';
+    setTimeout(function(){ msg.textContent=''; }, 2000);
+  } catch(e) { msg.textContent = '⚠️ '+e.message; msg.style.color='#dc2626'; }
+}
+
+// ══════════════════════════════════════════════════════
+// PRAZNICI HUB
+// ══════════════════════════════════════════════════════
+var _hubPraznici = {};
+
+function getEaster(year) {
+  var a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31)-1,day=((h+l-7*m+114)%31)+1;
+  return new Date(year,month,day);
+}
+function pad2(n){return n<10?'0'+n:String(n);}
+function getHrPrazniciHub(year) {
+  var p={};
+  function a(mo,da,n){p[year+'-'+pad2(mo)+'-'+pad2(da)]=n;}
+  a(1,1,'Nova godina');a(1,6,'Sveta tri kralja');a(5,1,'Međunarodni praznik rada');
+  a(6,22,'Dan antifašističke borbe');a(6,25,'Dan državnosti');a(8,5,'Dan domovinske zahvalnosti');
+  a(8,15,'Velika Gospa');a(11,1,'Svi sveti');a(11,18,'Dan sjećanja na žrtve Vukovara');
+  a(12,25,'Božić');a(12,26,'Sveti Stjepan');
+  var easter=getEaster(year),em=new Date(easter),tj=new Date(easter);
+  em.setDate(em.getDate()+1);tj.setDate(tj.getDate()+60);
+  function ds(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+  p[ds(easter)]='Uskrs';p[ds(em)]='Uskrsni ponedjeljak';p[ds(tj)]='Tijelovo';
+  return p;
+}
+var _prazniciEmoji={'Nova godina':'🎆','Sveta tri kralja':'⭐','Uskrs':'🐣','Uskrsni ponedjeljak':'🐰','Međunarodni praznik rada':'⚒️','Dan državnosti':'🇭🇷','Dan antifašističke borbe':'✊','Tijelovo':'✝️','Dan domovinske zahvalnosti':'🎖️','Velika Gospa':'🕊️','Svi sveti':'🕯️','Dan sjećanja na žrtve Vukovara':'🌹','Božić':'🎄','Sveti Stjepan':'⛪'};
+
+async function initHubPraznici() {
+  try {
+    _hubPraznici = await window._fsGetPraznici() || {};
+  } catch(e) { _hubPraznici = {}; }
+  var sel = document.getElementById('prazYearSel');
+  sel.innerHTML = '';
+  var curYear = new Date().getFullYear();
+  [curYear-1, curYear, curYear+1].forEach(function(y) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if (y === curYear) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  renderHubPraznici();
+}
+
+function renderHubPraznici() {
+  var year = parseInt(document.getElementById('prazYearSel').value);
+  var base = getHrPrazniciHub(year);
+  var overrides = _hubPraznici[String(year)] || {};
+  var list = document.getElementById('prazList');
+  list.innerHTML = '';
+  Object.keys(base).sort().forEach(function(ds) {
+    var enabled = overrides[ds] !== null && overrides[ds] !== false;
+    if (overrides.hasOwnProperty(ds) && overrides[ds] === null) enabled = false;
+    var row = document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:3px;';
+    var chk = document.createElement('input');
+    chk.type='checkbox'; chk.checked=enabled; chk.dataset.ds=ds;
+    var parts=ds.split('-');
+    var lbl = document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:6px;flex:1;font-size:12px;cursor:pointer;';
+    lbl.innerHTML='<span>'+((_prazniciEmoji[base[ds]])||'🎉')+'</span><span style="color:#6b7280;min-width:50px;font-size:11px;">'+parts[2]+'/'+parts[1]+'</span><span>'+base[ds]+'</span>';
+    lbl.prepend(chk);
+    row.appendChild(lbl);
+    list.appendChild(row);
+  });
+  Object.keys(overrides).sort().forEach(function(ds) {
+    if (base[ds] || overrides[ds]===null) return;
+    var parts=ds.split('-');
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:3px;';
+    var txt=document.createElement('span');
+    txt.style.cssText='flex:1;font-size:12px;';
+    txt.textContent='🎉 '+parts[2]+'/'+parts[1]+' — '+overrides[ds]+' (prilagođen)';
+    var del=document.createElement('button');
+    del.className='btn btn-secondary'; del.style.cssText='padding:2px 6px;font-size:10px;'; del.textContent='✕';
+    del.onclick=(function(d,y){return function(){if(!_hubPraznici[String(y)])_hubPraznici[String(y)]={};delete _hubPraznici[String(y)][d];renderHubPraznici();};})(ds,year);
+    row.appendChild(txt);row.appendChild(del);list.appendChild(row);
   });
 }
-function loadTheme() {
-  applyTheme(localStorage.getItem('ias-tema')||'default');
+
+function addHubCustomPraznik() {
+  var year=parseInt(document.getElementById('prazYearSel').value);
+  var raw=document.getElementById('customPrazDatum').value.trim();
+  var naziv=document.getElementById('customPrazNaziv').value.trim();
+  if(!raw||!naziv){alert('Unesite datum i naziv.');return;}
+  var p=raw.split('/');
+  if(p.length!==3){alert('Format: dd/mm/yyyy');return;}
+  var ds=p[2]+'-'+pad2(parseInt(p[1]))+'-'+pad2(parseInt(p[0]));
+  if(!_hubPraznici[String(year)])_hubPraznici[String(year)]={};
+  _hubPraznici[String(year)][ds]=naziv;
+  document.getElementById('customPrazDatum').value='';
+  document.getElementById('customPrazNaziv').value='';
+  renderHubPraznici();
 }
 
-// ── MODAL ──────────────────────────────────────────────────────────
-function openModal(id) {
-  if (id==='korisnici') { renderUserList(); }
-  document.getElementById('modal-'+id).classList.add('open');
+async function saveHubPraznici() {
+  var year=parseInt(document.getElementById('prazYearSel').value);
+  var base=getHrPrazniciHub(year);
+  if(!_hubPraznici[String(year)])_hubPraznici[String(year)]={};
+  document.getElementById('prazList').querySelectorAll('input[type=checkbox]').forEach(function(chk){
+    var ds=chk.dataset.ds; if(!ds)return;
+    if(!chk.checked) _hubPraznici[String(year)][ds]=null;
+    else delete _hubPraznici[String(year)][ds];
+  });
+  try {
+    await window._fsGetPraznici && await window._fsSavePraznici(_hubPraznici);
+    alert('✓ Praznici spremljeni');
+  } catch(e) { alert('Greška: '+e.message); }
 }
-function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
 
-// ── KORISNICI ──────────────────────────────────────────────────────
-function switchKorisTab(t) {
-  ['google','native'].forEach(function(n){
-    document.getElementById('koris-tab-'+n).style.display = n===t?'block':'none';
-    var btn = document.getElementById('ktab-'+n);
-    btn.classList.toggle('active', n===t);
+// ══════════════════════════════════════════════════════
+// SHARED DESK — stolovi i parking
+// ══════════════════════════════════════════════════════
+var _hubDesks=[], _hubParks=[];
+
+async function hubLoadDesks() {
+  var list=document.getElementById('hubDeskList'); list.innerHTML='Učitavanje...';
+  try {
+    _hubDesks = await window._fsGetDeskNames() || [];
+    renderHubDesks();
+  } catch(e) { list.innerHTML='<span style="color:#dc2626;font-size:11px;">'+e.message+'</span>'; }
+}
+function renderHubDesks() {
+  var list=document.getElementById('hubDeskList'); list.innerHTML='';
+  _hubDesks.forEach(function(name,i){
+    var row=document.createElement('div'); row.className='item-row';
+    var inp=document.createElement('input'); inp.type='text'; inp.value=name;
+    inp.style.cssText='flex:1;border:none;background:transparent;font-size:12px;';
+    inp.onchange=(function(idx){return function(){_hubDesks[idx]=this.value;};})(i);
+    var del=document.createElement('button'); del.className='btn btn-secondary'; del.style.cssText='padding:2px 8px;font-size:11px;'; del.textContent='✕';
+    del.onclick=(function(idx){return function(){_hubDesks.splice(idx,1);renderHubDesks();};})(i);
+    row.appendChild(inp);row.appendChild(del);list.appendChild(row);
   });
 }
-async function renderUserList() {
-  var list = document.getElementById('userAccessList');
-  list.innerHTML = '<div style="padding:8px;font-size:11px;color:#6b7280;">Učitavanje...</div>';
+function hubAddDesk(){var v=document.getElementById('hubNewDeskInput').value.trim();_hubDesks.push(v||'Stol '+(_hubDesks.length+1));document.getElementById('hubNewDeskInput').value='';renderHubDesks();}
+async function hubSaveDesks(){try{await window._fsSaveDeskNames(_hubDesks);alert('✓ Stolovi spremljeni');}catch(e){alert('Greška: '+e.message);}}
+
+async function hubLoadParks() {
+  var list=document.getElementById('hubParkList'); list.innerHTML='Učitavanje...';
   try {
-    var users = await window._fsGetUsers();
-    list.innerHTML = '';
-    if (!users.length) { list.innerHTML='<div style="padding:8px;font-size:11px;color:#6b7280;">Nema korisnika.</div>'; return; }
-    users.sort(function(a,b){return a.email.localeCompare(b.email);}).forEach(function(u) {
-      var row = document.createElement('div');
-      row.className = 'item-row';
-      row.style.justifyContent = 'space-between';
-      var left = document.createElement('div');
-      left.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;min-width:0;';
-      var emailSpan = document.createElement('span');
-      emailSpan.style.cssText = 'font-size:12px;color:#111827;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-      emailSpan.textContent = u.email;
-      var adminLbl = document.createElement('label');
-      adminLbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;';
-      var adminChk = document.createElement('input');
-      adminChk.type='checkbox'; adminChk.checked=u.admin;
-      adminChk.onchange=(function(id,chk){return function(){window._fsSetAdmin(id,chk.checked);};})(u.id,adminChk);
-      adminLbl.appendChild(adminChk);
-      adminLbl.appendChild(document.createTextNode(' Admin'));
-      left.appendChild(emailSpan); left.appendChild(adminLbl);
-      var delBtn = document.createElement('button');
-      delBtn.className='btn btn-secondary';
-      delBtn.style.cssText='padding:2px 8px;font-size:11px;margin-left:6px;flex-shrink:0;';
-      delBtn.textContent='✕';
-      delBtn.onclick=(function(id){return function(){if(confirm('Ukloniti korisnika?'))window._fsRemoveUser(id).then(renderUserList);};})(u.id);
-      row.appendChild(left); row.appendChild(delBtn);
-      list.appendChild(row);
-    });
-  } catch(e) { list.innerHTML='<div style="color:#dc2626;font-size:11px;padding:8px;">Greška: '+e.message+'</div>'; }
+    _hubParks = await window._fsGetParkNames() || [];
+    renderHubParks();
+  } catch(e) { list.innerHTML='<span style="color:#dc2626;font-size:11px;">'+e.message+'</span>'; }
 }
-async function addUserAccess() {
-  var ta = document.getElementById('newUserEmails');
-  var isAdmin = document.getElementById('newUserAdmin').checked;
-  var msg = document.getElementById('userAccessMsg');
-  var emails = ta.value.split(/[\n,;]+/).map(function(e){return e.trim().toLowerCase();}).filter(function(e){return e.includes('@');});
-  if (!emails.length) { msg.textContent='⚠️ Unesite barem jedan email.'; return; }
-  msg.textContent='Dodavanje...'; var added=0, exists=0, errors=0;
-  for (var i=0;i<emails.length;i++) {
-    try { await window._fsAddUser(emails[i], isAdmin); added++; }
-    catch(e){ if(e.message.includes('već postoji')) exists++; else errors++; }
-  }
-  ta.value='';
-  msg.textContent = '✓ Dodano: '+added+(exists?' • Već postoji: '+exists:'')+(errors?' • Greške: '+errors:'');
-  await renderUserList();
+function renderHubParks() {
+  var list=document.getElementById('hubParkList'); list.innerHTML='';
+  _hubParks.forEach(function(name,i){
+    var row=document.createElement('div'); row.className='item-row';
+    var inp=document.createElement('input'); inp.type='text'; inp.value=name;
+    inp.style.cssText='flex:1;border:none;background:transparent;font-size:12px;';
+    inp.onchange=(function(idx){return function(){_hubParks[idx]=this.value;};})(i);
+    var del=document.createElement('button'); del.className='btn btn-secondary'; del.style.cssText='padding:2px 8px;font-size:11px;'; del.textContent='✕';
+    del.onclick=(function(idx){return function(){_hubParks.splice(idx,1);renderHubParks();};})(i);
+    row.appendChild(inp);row.appendChild(del);list.appendChild(row);
+  });
 }
-function toggleNativePwd() {
-  var inp=document.getElementById('nativePassword');
-  document.getElementById('nativePwdToggle').textContent=inp.type==='password'?'🙈':'👁';
-  inp.type=inp.type==='password'?'text':'password';
-}
-async function addNativeUser() {
-  var email=document.getElementById('nativeEmail').value.trim().toLowerCase();
-  var pwd=document.getElementById('nativePassword').value;
-  var isAdmin=document.getElementById('nativeAdmin').checked;
-  var msg=document.getElementById('nativeMsg');
-  if(!email||!email.includes('@')){msg.style.color='#dc2626';msg.textContent='⚠️ Valjani email.';return;}
-  if(pwd.length<6){msg.style.color='#dc2626';msg.textContent='⚠️ Lozinka min. 6 znakova.';return;}
-  msg.textContent='Kreiranje...';msg.style.color='#6b7280';
+function hubAddPark(){var v=document.getElementById('hubNewParkInput').value.trim();_hubParks.push(v||'P'+(_hubParks.length+1));document.getElementById('hubNewParkInput').value='';renderHubParks();}
+async function hubSaveParks(){try{await window._fsSaveParkNames(_hubParks);alert('✓ Parking spremljen');}catch(e){alert('Greška: '+e.message);}}
+
+// ══════════════════════════════════════════════════════
+// GODIŠNJI — godine
+// ══════════════════════════════════════════════════════
+var _hubGodine=[];
+
+async function hubLoadYears() {
+  var list=document.getElementById('hubYearList'); list.innerHTML='Učitavanje...';
   try {
-    await window._fbCreateUser(email,pwd);
-    await window._fsAddUser(email,isAdmin);
-    document.getElementById('nativeEmail').value='';
-    document.getElementById('nativePassword').value='';
-    document.getElementById('nativeAdmin').checked=false;
-    msg.style.color='#16a34a';msg.textContent='✓ Korisnik kreiran.';
-    await renderUserList();
-  } catch(e){
-    var err=e.code==='auth/email-already-in-use'?'Email već postoji.':e.code==='auth/weak-password'?'Lozinka je preslaba.':e.message||'Greška.';
-    msg.style.color='#dc2626';msg.textContent='⚠️ '+err;
-  }
+    _hubGodine = await window._fsGetGodine() || [{godina:new Date().getFullYear(),hidden:false}];
+    renderHubYears();
+  } catch(e) { list.innerHTML='<span style="color:#dc2626;font-size:11px;">'+e.message+'</span>'; }
 }
-async function sendReset() {
-  var email=document.getElementById('resetEmail').value.trim().toLowerCase();
-  var msg=document.getElementById('resetMsg');
-  if(!email){msg.style.color='#dc2626';msg.textContent='⚠️ Unesite email.';return;}
-  msg.textContent='Slanje...';msg.style.color='#6b7280';
-  try{await window._fbResetPassword(email);document.getElementById('resetEmail').value='';msg.style.color='#16a34a';msg.textContent='✓ Reset poslan na '+email;}
-  catch(e){msg.style.color='#dc2626';msg.textContent='⚠️ '+(e.code==='auth/user-not-found'?'Email nije pronađen.':e.message||'Greška.');}
+function renderHubYears() {
+  var list=document.getElementById('hubYearList'); list.innerHTML='';
+  _hubGodine.sort(function(a,b){return a.godina-b.godina;}).forEach(function(g,i){
+    var row=document.createElement('div'); row.className='item-row';
+    var lbl=document.createElement('span'); lbl.style.cssText='flex:1;font-size:13px;font-weight:600;'; lbl.textContent=g.godina+'.';
+    var hiddenLbl=document.createElement('label'); hiddenLbl.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;';
+    var hiddenChk=document.createElement('input'); hiddenChk.type='checkbox'; hiddenChk.checked=g.hidden||false;
+    hiddenChk.onchange=(function(idx){return function(){_hubGodine[idx].hidden=this.checked;};})(i);
+    hiddenLbl.appendChild(hiddenChk); hiddenLbl.appendChild(document.createTextNode('Sakrij'));
+    var saveBtn=document.createElement('button'); saveBtn.className='btn btn-primary'; saveBtn.style.cssText='padding:2px 8px;font-size:11px;'; saveBtn.textContent='💾';
+    saveBtn.onclick=hubSaveYear;
+    var delBtn=document.createElement('button'); delBtn.className='btn btn-secondary'; delBtn.style.cssText='padding:2px 8px;font-size:11px;color:#dc2626;'; delBtn.textContent='🗑️';
+    delBtn.onclick=(function(idx){return function(){if(confirm('Obrisati godinu '+_hubGodine[idx].godina+'?')){_hubGodine.splice(idx,1);hubSaveYear();}};})(i);
+    row.appendChild(lbl);row.appendChild(hiddenLbl);row.appendChild(saveBtn);row.appendChild(delBtn);
+    list.appendChild(row);
+  });
+}
+function hubAddYear(){
+  var v=parseInt(document.getElementById('hubNewYearInput').value);
+  var msg=document.getElementById('hubYearMsg');
+  if(!v||v<2000||v>2100){msg.textContent='⚠️ Unesite valjanu godinu.';return;}
+  if(_hubGodine.find(function(g){return g.godina===v;})){msg.textContent='⚠️ Godina već postoji.';return;}
+  _hubGodine.push({godina:v,hidden:false});
+  document.getElementById('hubNewYearInput').value='';
+  renderHubYears(); hubSaveYear();
+}
+async function hubSaveYear(){
+  var msg=document.getElementById('hubYearMsg');
+  try { await window._fsSaveGodine(_hubGodine); msg.textContent='✓ Savedano'; msg.style.color='#16a34a'; setTimeout(function(){msg.textContent='';},1500); }
+  catch(e){ msg.textContent='⚠️ '+e.message; msg.style.color='#dc2626'; }
 }
 </script>
+
 </body>
 </html>
