@@ -786,6 +786,9 @@ var currentYear = new Date().getFullYear();
 var weekOffset = 0;
 var currentMonth = new Date().getMonth();
 var currentTab = 'week';
+var pendingCell = null;
+var pendingDragCells = null;
+var _dragJustFired = false;
 var data = {
   zaposlenici: [],
   godine: [{ godina: new Date().getFullYear(), hidden: false }],
@@ -1558,7 +1561,7 @@ function renderFun() {
     // Header s bojom
     var hdr = document.createElement('div');
     hdr.style.cssText = 'background:'+color+';padding:14px 18px 10px;';
-    hdr.innerHTML = '<div style="font-size:28px;margin-bottom:2px;">'+emoji+'</div>'
+    hdr.innerHTML = '<div style="font-size:28px;margin-bottom:4px;line-height:1;display:flex;align-items:center;">'+emoji+'</div>'
       + '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:.8px;text-transform:uppercase;opacity:.85;">'+award+'</div>';
     c.appendChild(hdr);
 
@@ -1572,7 +1575,7 @@ function renderFun() {
     if (rankList && rankList.length > 1) {
       var tbl = document.createElement('div');
       tbl.style.cssText = 'margin-top:10px;border-top:1px solid var(--card-border);padding-top:10px;';
-      rankList.forEach(function(r, i) {
+      rankList.slice(0,3).forEach(function(r, i) {
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
         var medal = ['🥇','🥈','🥉'][i] || '<span style="width:18px;display:inline-block;">&nbsp;</span>';
@@ -1620,7 +1623,7 @@ function renderFun() {
     hasAny = true;
     var br0 = brRank[0];
     var brTitles = br0.val>=4?'Pravi strateg slobodnih dana 🧠':br0.val>=2?'Zna iskoristiti kalendar 😏':'Otkrio tajnu dugih vikenda';
-    wrap.appendChild(awardCard('🌉','Grand master bridgea', br0.name,
+    wrap.appendChild(awardCard('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"32\" height=\"32\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48\"/></svg>','Spajalica', br0.name,
       br0.val+'× spojio GO uz vikend ili praznik — '+brTitles, brRank, '#f59e0b'));
   }
 
@@ -1746,7 +1749,7 @@ function renderStats() {
     var tdUsed = document.createElement('td');
     tdUsed.style.cssText = 'text-align:center;white-space:nowrap;';
     var spanNum = document.createElement('span');
-    spanNum.textContent = goUsedMay < goUsed ? goUsed + ' (' + goUsedMay + ')' : String(goUsed);
+    spanNum.textContent = goUsed > 0 ? goUsed + ' (' + goUsedMay + ')' : '0';
     var bar = document.createElement('span');
     bar.style.cssText = 'height:10px;border-radius:5px;background:var(--go-bg);border:1px solid var(--go-border);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:6px;';
     var fill = document.createElement('span');
