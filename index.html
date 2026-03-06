@@ -9,17 +9,13 @@
 <link rel="manifest" href='data:application/json,{"name":"IAS Team","short_name":"IAS Team","start_url":".","display":"standalone","background_color":"#1a56a0","theme_color":"#1a56a0","icons":[{"src":"https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/72x72/1f4cb.png","sizes":"72x72","type":"image/png"}]}'>
 <title>IAS Team</title>
 
-<script type="module">
-  import { initializeApp }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
-           signOut, onAuthStateChanged, sendPasswordResetEmail, createUserWithEmailAndPassword }
-                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc }
-                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-    const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -27,104 +23,102 @@
   storageBucket: "ias-shared-desk.firebasestorage.app",
   messagingSenderId: "752309546769",
   appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
-};
-  // ================================================================
+};===============================================================
 
-  const app      = initializeApp(firebaseConfig);
-  const auth     = getAuth(app);
-  const fsdb     = getFirestore(app);
-  const provider = new GoogleAuthProvider();
+  firebase.initializeApp(firebaseConfig);
+  const _auth = firebase.auth();
+  const _fsdb = firebase.firestore();
+  const _provider = new firebase.auth.GoogleAuthProvider();
 
-  window._fbSignIn  = () => signInWithPopup(auth, provider);
-  window._fbSignOut = () => signOut(auth);
-  window._fbAuth    = auth;
-  window._fbEmailSignIn   = (e, p) => signInWithEmailAndPassword(auth, e, p);
-  window._fbResetPassword = (e)    => sendPasswordResetEmail(auth, e);
+  // ── Auth ──────────────────────────────────────────────────────
+  window._fbSignIn        = () => _auth.signInWithPopup(_provider);
+  window._fbSignOut       = () => _auth.signOut();
+  window._fbAuth          = _auth;
+  window._fbEmailSignIn   = (e, p) => _auth.signInWithEmailAndPassword(e, p);
+  window._fbResetPassword = (e)    => _auth.sendPasswordResetEmail(e);
+  window._fbCreateUser    = (e, p) => _auth.createUserWithEmailAndPassword(e, p);
 
+  // ── Provjera pristupa ─────────────────────────────────────────
   async function checkAccess(email) {
     try {
-      const snap = await getDocs(collection(fsdb, 'allowed_users'));
-      const found = snap.docs.find(d => (d.data().email||d.data().Email||'').toLowerCase() === email.toLowerCase());
+      const snap = await _fsdb.collection('allowed_users').get();
+      const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
       if (!found) return { allowed: false, admin: false };
-      return { allowed: true, admin: found.data().admin===true||found.data().Admin===true };
+      return { allowed: true, admin: found.data().admin === true };
     } catch(e) { return { allowed: false, admin: false }; }
   }
 
-  // Upravljanje korisnicima
+  // ── Korisnici ─────────────────────────────────────────────────
   window._fsGetUsers = async () => {
-    const snap = await getDocs(collection(fsdb, 'allowed_users'));
-    return snap.docs.filter(d=>d.data().email||d.data().Email).map(d=>({ id:d.id, email:d.data().email||d.data().Email, admin:d.data().admin===true||d.data().Admin===true, name:d.data().name||'', isNative:d.data().isNative===true }));
+    const snap = await _fsdb.collection('allowed_users').get();
+    return snap.docs.filter(d=>d.data().email).map(d=>({
+      id: d.id, email: d.data().email, admin: d.data().admin===true,
+      name: d.data().name||'', isNative: d.data().isNative===true
+    }));
   };
-  window._fsSetUserName = async (docId, name) => {
-    await updateDoc(doc(fsdb, 'allowed_users', docId), { name });
-  };
-  window._fsAddUser = async (email, isAdmin, isNative=false) => {
+  window._fsSetUserName  = async (id, name)    => _fsdb.collection('allowed_users').doc(id).update({ name });
+  window._fsAddUser      = async (email, isAdmin, isNative=false) => {
     email = email.toLowerCase().trim();
     const users = await window._fsGetUsers();
-    if (users.find(u=>u.email.toLowerCase()===email)) throw new Error('Korisnik već postoji');
-    await addDoc(collection(fsdb, 'allowed_users'), { email, admin: isAdmin, isNative });
+    if (users.find(u=>u.email===email)) throw new Error('Korisnik već postoji');
+    await _fsdb.collection('allowed_users').add({ email, admin: isAdmin, isNative });
   };
-  window._fsRemoveUser = async (docId) => { await deleteDoc(doc(fsdb, 'allowed_users', docId)); };
-  window._fsSetAdmin   = async (docId, isAdmin) => { await updateDoc(doc(fsdb, 'allowed_users', docId), { admin: isAdmin }); };
-  window._fbCreateUser = async (email, pwd) => { await createUserWithEmailAndPassword(auth, email, pwd); };
+  window._fsRemoveUser   = async (id)          => _fsdb.collection('allowed_users').doc(id).delete();
+  window._fsSetAdmin     = async (id, isAdmin) => _fsdb.collection('allowed_users').doc(id).update({ admin: isAdmin });
 
-  // ── Tim zaposlenici (zajednička lista) ────────────────────────
-  window._fsGetTimClanovi = async () => {
-    const d = await getDoc(doc(fsdb, 'tim_config', 'zaposlenici'));
-    return d.exists() ? (d.data().lista || []) : [];
+  // ── Tim zaposlenici ───────────────────────────────────────────
+  window._fsGetTimClanovi  = async () => {
+    const d = await _fsdb.collection('tim_config').doc('zaposlenici').get();
+    return d.exists ? (d.data().lista || []) : [];
   };
-  window._fsSaveTimClanovi = async (lista) => {
-    await setDoc(doc(fsdb, 'tim_config', 'zaposlenici'), { lista });
-  };
+  window._fsSaveTimClanovi = async (lista) =>
+    _fsdb.collection('tim_config').doc('zaposlenici').set({ lista });
 
-  // ── Desk/Park nazivi ──────────────────────────────────────────
-  window._fsGetDeskNames = async () => {
-    const d = await getDoc(doc(fsdb, 'desk_config', 'stolovi'));
-    return d.exists() ? (d.data().names || []) : [];
+  // ── Desk / Park nazivi ────────────────────────────────────────
+  window._fsGetDeskNames  = async () => {
+    const d = await _fsdb.collection('desk_config').doc('stolovi').get();
+    return d.exists ? (d.data().names || []) : [];
   };
-  window._fsSaveDeskNames = async (names) => {
-    await setDoc(doc(fsdb, 'desk_config', 'stolovi'), { names });
+  window._fsSaveDeskNames = async (names) =>
+    _fsdb.collection('desk_config').doc('stolovi').set({ names });
+  window._fsGetParkNames  = async () => {
+    const d = await _fsdb.collection('desk_config').doc('parking').get();
+    return d.exists ? (d.data().names || []) : [];
   };
-  window._fsGetParkNames = async () => {
-    const d = await getDoc(doc(fsdb, 'desk_config', 'parking'));
-    return d.exists() ? (d.data().names || []) : [];
-  };
-  window._fsSaveParkNames = async (names) => {
-    await setDoc(doc(fsdb, 'desk_config', 'parking'), { names });
-  };
+  window._fsSaveParkNames = async (names) =>
+    _fsdb.collection('desk_config').doc('parking').set({ names });
 
-  // ── Godine (godišnji odmori) ──────────────────────────────────
-  window._fsGetGodine = async () => {
-    const d = await getDoc(doc(fsdb, 'godisnji_config', 'godine'));
-    return d.exists() ? (d.data().lista || []) : [];
+  // ── Godine ────────────────────────────────────────────────────
+  window._fsGetGodine  = async () => {
+    const d = await _fsdb.collection('godisnji_config').doc('godine').get();
+    return d.exists ? (d.data().lista || []) : [];
   };
-  window._fsSaveGodine = async (lista) => {
-    await setDoc(doc(fsdb, 'godisnji_config', 'godine'), { lista });
-  };
+  window._fsSaveGodine = async (lista) =>
+    _fsdb.collection('godisnji_config').doc('godine').set({ lista });
 
-  // ── Praznici ─────────────────────────────────────────────────
-  window._fsGetPraznici = async () => {
-    const d = await getDoc(doc(fsdb, 'godisnji_config', 'praznici'));
-    return d.exists() ? (d.data().overrides || {}) : {};
+  // ── Praznici ──────────────────────────────────────────────────
+  window._fsGetPraznici  = async () => {
+    const d = await _fsdb.collection('godisnji_config').doc('praznici').get();
+    return d.exists ? (d.data().overrides || {}) : {};
   };
-  window._fsSavePraznici = async (overrides) => {
-    await setDoc(doc(fsdb, 'godisnji_config', 'praznici'), { overrides });
-  };
+  window._fsSavePraznici = async (overrides) =>
+    _fsdb.collection('godisnji_config').doc('praznici').set({ overrides });
 
-  onAuthStateChanged(auth, async user => {
+  // ── Auth state ────────────────────────────────────────────────
+  _auth.onAuthStateChanged(async function(user) {
     if (user) {
       const { allowed, admin } = await checkAccess(user.email);
       if (allowed) {
         window._fbReady = true;
         window._fbAdmin = admin;
         window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
-        setTimeout(function(){ window.dispatchEvent(new Event('firebase-ready')); }, 0);
+        window.dispatchEvent(new Event('firebase-ready'));
       } else {
-        signOut(auth);
-        setTimeout(function(){ window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email })); }, 0);
+        _auth.signOut();
+        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
       }
     } else {
-      setTimeout(function(){ window.dispatchEvent(new Event('auth-needed')); }, 0);
+      window.dispatchEvent(new Event('auth-needed'));
     }
   });
 </script>
