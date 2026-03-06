@@ -409,6 +409,14 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
     const d = await getDoc(doc(fsdb, 'godisnji_config', 'zaposlenici'));
     return d.exists() ? (d.data().lista || []) : [];
   };
+  // Zajednička lista tima (ista kolekcija kao Hub i Shared Desk)
+  window._fsGetTimClanovi = async () => {
+    const d = await getDoc(doc(fsdb, 'tim_config', 'zaposlenici'));
+    return d.exists() ? (d.data().lista || []) : [];
+  };
+  window._fsSaveTimClanovi = async (lista) => {
+    await setDoc(doc(fsdb, 'tim_config', 'zaposlenici'), { lista });
+  };
 
   // ── Godine ────────────────────────────────────────────────────
   window._fsGetGodine = async () => {
@@ -831,12 +839,19 @@ async function loginWithEmail() {
 
 // Učitaj zaposlenike iz Firestore, spremi lokalno
 async function syncZaposlenici() {
-  if (!window._fsGetZaposlenici) return;
+  // Čitaj iz zajedničke tim_config kolekcije
+  var getFn = window._fsGetTimClanovi || window._fsGetZaposlenici;
+  if (!getFn) return;
   try {
-    var zaps = await window._fsGetZaposlenici();
-    if (zaps.length > 0) {
-      data.zaposlenici = zaps.map(function(z) {
-        return { id: z.id, ime: z.ime || z.name || '', goDana: z.goDana || 20 };
+    var clanovi = await getFn();
+    if (clanovi && clanovi.length > 0) {
+      // tim_config vraća {ime}, godisnji treba {ime, goDana}
+      // goDana čuvamo lokalno — spoji s postojećim podacima
+      data.zaposlenici = clanovi.map(function(c) {
+        var ime = c.ime || c.name || '';
+        // Pronađi postojeći unos za ovog zaposlenika da sačuvamo goDana
+        var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
+        return { ime: ime, goDana: (existing && existing.goDana) || c.goDana || 20 };
       });
       saveData();
       renderUserSelect();
