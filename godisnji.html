@@ -243,7 +243,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 #syncStatus.saving { background:#fef3c7;color:#92400e;border:1px solid #fde68a; }
 
 /* KORISNIK MODAL NAME SEL */
-.user-select-wrap { display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--bg3);border-bottom:1px solid var(--tabs-border); }
+
 .user-select-wrap label { font-size:12px;font-weight:600;color:var(--body-text); }
 .user-select-wrap select { padding:5px 8px;border-radius:5px;border:1px solid var(--input-border);font-size:12px;color:var(--input-color);background:var(--input-bg); }
 
@@ -265,9 +265,9 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
   .top-bar button { font-size:10px;padding:0 8px; }
 
   /* User select */
-  .user-select-wrap { flex-wrap:wrap;gap:4px; }
+  
   .user-select-wrap select { width:100%; }
-  #userDaysInfo { width:100%;font-size:10px; }
+  
 
   /* Year tabs */
   .year-tabs-wrap { padding:0 8px; }
@@ -415,7 +415,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 <div id="appWrap">
 
 
-<div id="syncStatus" class="synced">✓ Lokalno</div>
+<div id="syncStatus" class="synced">✓ Sinkronizirano</div>
 
 <!-- TOP BAR -->
 <div class="top-bar">
@@ -433,14 +433,9 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
   </div>
 </div>
 
-<!-- ODABIR KORISNIKA -->
-<div class="user-select-wrap">
-  <label>Korisnik:</label>
-  <select id="currentUser" onchange="onUserChange()">
-    <option value="">— odaberi —</option>
-  </select>
-  <span id="userDaysInfo" style="font-size:11px;color:var(--muted-text);margin-left:8px;"></span>
-</div>
+<!-- currentUser hidden - koristi se interno -->
+<select id="currentUser" style="display:none;" onchange="onUserChange()"><option value="">— odaberi —</option></select>
+<span id="userDaysInfo" style="display:none;"></span>
 
 
 <!-- DANAS KARTICA (mobil) -->
@@ -709,8 +704,12 @@ function setUnos(godina, zapIdx, ds, vrsta) {
     data.unosi[godina][zapIdx][ds] = vrsta;
   }
   saveData();
+  renderDanas();
   if (window._fbReady && window._fsSaveUnosi) {
-    window._fsSaveUnosi(godina, data.unosi[godina] || {}).catch(function(e){ console.error(e); });
+    setSS('saving', '⟳ Spremanje...');
+    window._fsSaveUnosi(godina, data.unosi[godina] || {})
+      .then(function(){ setSS('synced', '✓ Sinkronizirano'); })
+      .catch(function(e){ setSS('error', '✗ Greška'); console.error(e); });
   }
 }
 
@@ -747,12 +746,23 @@ function onCellMouseEnter(zapIdx, datum, chipEl, vrsta) {
 
 
 // ── Utility funkcije ─────────────────────────────────────────
+
+function setSS(state, txt) {
+  var el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.className = 'synced'; // reset
+  if (state === 'saving') el.className = 'saving';
+  else if (state === 'error') el.className = 'error';
+  el.textContent = txt;
+}
+
 function pad(n) { return String(n).padStart(2, '0'); }
 function dateStr(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
 function todayStr() { var t = new Date(); return dateStr(t.getFullYear(), t.getMonth()+1, t.getDate()); }
 function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 
 var currentYear = new Date().getFullYear();
+var weekOffset = 0;
 var currentMonth = new Date().getMonth();
 var currentTab = 'week';
 var data = {
@@ -833,7 +843,7 @@ async function syncZaposlenici() {
         var ime = c.ime || c.name || '';
         // Pronađi postojeći unos za ovog zaposlenika da sačuvamo goDana
         var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
-        return { ime: ime, goDana: (existing && existing.goDana) || c.goDana || 20 };
+        return { ime: ime, goDana: c.goDana || (existing && existing.goDana) || 30 };
       });
       saveData();
       renderUserSelect();
@@ -884,7 +894,7 @@ async function loadFromFirebase() {
         data.zaposlenici = clanovi.map(function(c) {
           var ime = c.ime || c.name || '';
           var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
-          return { ime: ime, goDana: (existing && existing.goDana) || c.goDana || 20 };
+          return { ime: ime, goDana: c.goDana || (existing && existing.goDana) || 30 };
         });
       }
     }
@@ -976,8 +986,35 @@ function loadTheme() {
   applyTheme(localStorage.getItem('ias-theme') || 'default');
 }
 
+
+function renderDanas() {
+  var list = document.getElementById('danasList');
+  if (!list) return;
+  list.innerHTML = '';
+  var today = todayStr();
+  var odsutni = [];
+  data.zaposlenici.forEach(function(z, zi) {
+    var vrsta = getUnos(currentYear, zi, today);
+    if (vrsta) odsutni.push({ ime: z.ime, vrsta: vrsta });
+  });
+  if (!odsutni.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--muted-text);padding:4px 0;">Svi su danas na poslu 🎉</div>';
+    return;
+  }
+  odsutni.forEach(function(o) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--card-border);font-size:13px;';
+    var v = VRSTE[o.vrsta] || { emoji: '📅', label: o.vrsta };
+    row.innerHTML = '<span style="font-size:16px;">' + v.emoji + '</span>'
+      + '<span style="font-weight:600;">' + o.ime + '</span>'
+      + '<span style="color:var(--muted-text);font-size:11px;margin-left:auto;">' + v.label + '</span>';
+    list.appendChild(row);
+  });
+}
+
 function renderAll() {
   console.log('[GODISNJI] renderAll - zaposlenici:', data.zaposlenici, 'godine:', data.godine);
+  renderDanas();
   renderYearTabs();
   renderUserSelect();
   renderMonthTabs();
@@ -1376,6 +1413,111 @@ function renderWeek() {
 // ════════════════════════════════════════════════════════════════
 // STATISTIKA
 // ════════════════════════════════════════════════════════════════
+
+function renderFun() {
+  var wrap = document.getElementById('funWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!data.zaposlenici.length) {
+    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:30px;">Nema zaposlenika.</p>';
+    return;
+  }
+
+  var facts = [];
+  var unosi = data.unosi[currentYear] || {};
+
+  // Pripremi stats po zaposleniku
+  var stats = data.zaposlenici.map(function(z, zi) {
+    var zapUnosi = unosi[zi] || {};
+    var goUsed = 0, sd = 0, sde = 0, dk = 0, bo = 0, bridgeDays = 0;
+    Object.entries(zapUnosi).forEach(function(e) {
+      var ds = e[0], vrsta = e[1];
+      if (vrsta === 'GO') goUsed++;
+      if (vrsta === 'SD') sd++;
+      if (vrsta === 'SDE') sde++;
+      if (vrsta === 'DK') dk++;
+      if (vrsta === 'BO') bo++;
+      // Provjeri je li GO dan između vikenda/praznika (bridge)
+      if (vrsta === 'GO') {
+        var d = new Date(ds);
+        var prev = new Date(d); prev.setDate(prev.getDate()-1);
+        var next = new Date(d); next.setDate(next.getDate()+1);
+        var prevDs = prev.getFullYear()+'-'+pad(prev.getMonth()+1)+'-'+pad(prev.getDate());
+        var nextDs = next.getFullYear()+'-'+pad(next.getMonth()+1)+'-'+pad(next.getDate());
+        var prevIsOff = prev.getDay()===0||prev.getDay()===6||isPraznik(prevDs);
+        var nextIsOff = next.getDay()===0||next.getDay()===6||isPraznik(nextDs);
+        if (prevIsOff || nextIsOff) bridgeDays++;
+      }
+    });
+    return { ime: z.ime, goUsed: goUsed, goDana: z.goDana||30, sd: sd, sde: sde, dk: dk, bo: bo, bridgeDays: bridgeDays };
+  });
+
+  function addFact(emoji, text) { facts.push(emoji + ' ' + text); }
+  function top(arr, key) { return arr.slice().sort(function(a,b){ return b[key]-a[key]; })[0]; }
+  function allWith(arr, key, val) { return arr.filter(function(a){ return a[key]===(val!==undefined?val:a[key]) && a[key]>0; }); }
+
+  // 🏆 Najveći GO
+  var topGO = top(stats, 'goUsed');
+  if (topGO && topGO.goUsed > 0)
+    addFact('🏆', 'Najduži odmor: <b>' + topGO.ime + '</b> — ' + topGO.goUsed + ' dana');
+
+  // 💼 Tko još nije uzeo GO
+  var nulGO = stats.filter(function(s){ return s.goUsed === 0; });
+  if (nulGO.length > 0)
+    addFact('💼', 'Još nije iskoristio GO: <b>' + nulGO.map(function(s){ return s.ime; }).join(', ') + '</b>');
+
+  // 🌉 Majstor spajanja — najviše GO dana spojenih uz vikend ili praznik
+  var topBridge = top(stats, 'bridgeDays');
+  if (topBridge && topBridge.bridgeDays > 0)
+    addFact('🌉', 'Majstor spajanja vikenda/praznika: <b>' + topBridge.ime + '</b> — ' + topBridge.bridgeDays + ' puta');
+
+  // 🩸 Tko je dao najviše krvi
+  var topDK = top(stats, 'dk');
+  if (topDK && topDK.dk > 0) {
+    var sviDK = allWith(stats, 'dk', topDK.dk);
+    addFact('🩸', 'Najviše darivanja krvi: <b>' + sviDK.map(function(s){ return s.ime; }).join(', ') + '</b> — ' + topDK.dk + 'x');
+  }
+
+  // 📚 Tko se najviše educirao
+  var topSDE = top(stats, 'sde');
+  if (topSDE && topSDE.sde > 0) {
+    var sviSDE = allWith(stats, 'sde', topSDE.sde);
+    addFact('📚', 'Najviše edukacija: <b>' + sviSDE.map(function(s){ return s.ime; }).join(', ') + '</b> — ' + topSDE.sde + ' dan' + (topSDE.sde === 1 ? '' : 'a'));
+  }
+
+  // 🤒 Tko je bio najdulje na bolovanju
+  var topBO = top(stats, 'bo');
+  if (topBO && topBO.bo > 0)
+    addFact('🤒', 'Najdulje bolovanje: <b>' + topBO.ime + '</b> — ' + topBO.bo + ' dan' + (topBO.bo === 1 ? '' : 'a'));
+
+  // ☀️ Tko je uzeo najviše slobodnih dana
+  var topSD = top(stats, 'sd');
+  if (topSD && topSD.sd > 0)
+    addFact('☀️', 'Najviše slobodnih dana: <b>' + topSD.ime + '</b> — ' + topSD.sd + ' dan' + (topSD.sd === 1 ? '' : 'a'));
+
+  // 📊 Ukupno GO tim
+  var totalUsed = stats.reduce(function(s,a){ return s+a.goUsed; }, 0);
+  var avgUsed = Math.round(totalUsed / (stats.length || 1));
+  addFact('📊', 'Tim ukupno iskoristio: <b>' + totalUsed + ' dana</b> GO — prosjek ' + avgUsed + ' po osobi');
+
+  // 🏖️ Tko ima najmanje preostalog GO (treba uzeti odmor!)
+  var leastLeft = stats.slice().sort(function(a,b){ return (a.goDana-a.goUsed)-(b.goDana-b.goUsed); })[0];
+  if (leastLeft && leastLeft.goUsed > 0)
+    addFact('⚠️', 'Najmanje preostalog GO: <b>' + leastLeft.ime + '</b> — samo ' + (leastLeft.goDana - leastLeft.goUsed) + ' dan' + ((leastLeft.goDana-leastLeft.goUsed)===1?'':'a') + ' ostalo');
+
+  if (facts.length === 0) {
+    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:30px;">Nema još unesenih podataka za ovu godinu.</p>';
+    return;
+  }
+
+  facts.forEach(function(f) {
+    var p = document.createElement('div');
+    p.style.cssText = 'padding:14px 16px;border-radius:8px;background:var(--card-bg);border:1px solid var(--card-border);margin-bottom:10px;font-size:14px;line-height:1.5;';
+    p.innerHTML = f;
+    wrap.appendChild(p);
+  });
+}
+
 function renderStats() {
   var tbl = document.getElementById('statsTable');
   tbl.innerHTML = '';
@@ -1388,7 +1530,7 @@ function renderStats() {
   // THEAD
   var thead = document.createElement('thead');
   var trh = document.createElement('tr');
-  ['Zaposlenik','GO ukupno','Iskorišteni GO','Preostalo GO','Slobodni dani','Edukacija','Darivanje krvi','Bolovanje'].forEach(function(t) {
+  ['Zaposlenik','GO ukupno','Iskorišteni GO (do 31.5.)','Preostalo GO','Slobodni dani','Edukacija','Darivanje krvi','Bolovanje'].forEach(function(t) {
     var th = document.createElement('th');
     th.textContent = t;
     trh.appendChild(th);
@@ -1432,7 +1574,7 @@ function renderStats() {
     var tdUsed = document.createElement('td');
     tdUsed.style.cssText = 'text-align:center;white-space:nowrap;';
     var spanNum = document.createElement('span');
-    spanNum.textContent = goUsed;
+    spanNum.textContent = goUsed + (goUsedMay < goUsed ? ' ('+goUsedMay+' do 31.5.)' : '');
     var bar = document.createElement('span');
     bar.style.cssText = 'height:10px;border-radius:5px;background:var(--go-bg);border:1px solid var(--go-border);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:6px;';
     var fill = document.createElement('span');
@@ -1478,6 +1620,7 @@ function showTab(t) {
   if (t==='calendar') renderCalendar();
   if (t==='week') renderWeek();
   if (t==='stats') renderStats();
+  if (t==='fun') renderFun();
 }
 
 // ════════════════════════════════════════════════════════════════
