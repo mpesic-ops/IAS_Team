@@ -358,15 +358,15 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA (isti kao Shared Desk):
-  const firebaseConfig = {
-    apiKey: "ZAMIJENITE-OVO",
-    authDomain: "vas-projekt.firebaseapp.com",
-    databaseURL: "https://vas-projekt-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "vas-projekt",
-    storageBucket: "vas-projekt.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:abcdef1234567890"
-  };
+    const firebaseConfig = {
+  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+  authDomain: "ias-shared-desk.firebaseapp.com",
+  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ias-shared-desk",
+  storageBucket: "ias-shared-desk.firebasestorage.app",
+  messagingSenderId: "752309546769",
+  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+};
   // ================================================================
 
   const app    = initializeApp(firebaseConfig);
@@ -575,7 +575,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 </div>
 
 <!-- LOGIN -->
-<div id="loginOverlay" class="hidden">
+<div id="loginOverlay" class="hidden" data-check="ok">
   <div class="login-box">
     <div class="login-logo">🏖️</div>
     <h1>IAS Godišnji Odmori</h1>
@@ -630,7 +630,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 </div>
 
 <!-- LOGIN -->
-<div id="loginOverlay" class="hidden">
+<div id="loginOverlay" class="hidden" data-check="ok">
   <div class="login-box">
     <div class="login-logo">🏖️</div>
     <h1>IAS Godišnji Odmori</h1>
@@ -1864,9 +1864,8 @@ window.addEventListener('firebase-ready', async function() {
 });
 
 window.addEventListener('auth-needed', function() {
-  document.getElementById('connectingOverlay').classList.add('hidden');
-  document.getElementById('loginOverlay').classList.remove('hidden');
-  document.getElementById('appWrap').style.display = 'none';
+  // Nije prijavljen — vrati na hub za login
+  window.location.href = 'index.html';
 });
 
 window.addEventListener('auth-denied', function(e) {
