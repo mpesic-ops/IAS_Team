@@ -680,7 +680,7 @@ var DAYS = ['Ned','Pon','Uto','Sri','Čet','Pet','Sub'];
 var VRSTE = {
   'GO':  { label: 'GO',  emoji: '🏖️',  full: 'Godišnji odmor' },
   'SD':  { label: 'SD',  emoji: '☀️',   full: 'Slobodan dan' },
-  'SDE': { label: 'SDE', emoji: '📚',   full: 'Edukacija' },
+  'SDE': { label: 'EDU', emoji: '📚',   full: 'Edukacija' },
   'DK':  { label: 'DK',  emoji: '🩸',   full: 'Darivanje krvi' },
   'BO':  { label: 'BO',  emoji: '🤒',   full: 'Bolovanje' },
 };
@@ -714,14 +714,14 @@ function setUnos(godina, zapIdx, ds, vrsta) {
 }
 
 function countDana(zapIdx, vrsta, godina) {
-  var unGod = data.unosi[godina] || {};
+  var unGod = data.unosi[godina] || data.unosi[String(godina)] || {};
   var u = unGod[zapIdx] || unGod[String(zapIdx)] || {};
   return Object.values(u).filter(function(v){ return v === vrsta; }).length;
 }
 
 // ── Drag select handlers ──────────────────────────────────────
 function countDanaDo(zapIdx, vrsta, godina, doDs) {
-  var unGod = data.unosi[godina] || {};
+  var unGod = data.unosi[godina] || data.unosi[String(godina)] || {};
   var u = unGod[zapIdx] || unGod[String(zapIdx)] || {};
   return Object.keys(u).filter(function(ds){ return u[ds]===vrsta && ds<=doDs; }).length;
 }
@@ -794,7 +794,19 @@ var data = {
 };
 
 function loadData() {
-  try { var s = localStorage.getItem(STORAGE_KEY); if (s) { var d = JSON.parse(s); data = Object.assign(data, d); } } catch(e) {}
+  try {
+    var s = localStorage.getItem(STORAGE_KEY);
+    if (s) {
+      var d = JSON.parse(s);
+      data = Object.assign(data, d);
+      // goDana se uvijek čita svježe iz Firestore - ne koristimo cached vrijednost
+      if (data.zaposlenici) {
+        data.zaposlenici = data.zaposlenici.map(function(z) {
+          return Object.assign({}, z, { goDana: null });
+        });
+      }
+    }
+  } catch(e) {}
 }
 
 function saveData() {
@@ -864,7 +876,7 @@ async function syncZaposlenici() {
         var ime = c.ime || c.name || '';
         // Pronađi postojeći unos za ovog zaposlenika da sačuvamo goDana
         var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
-        return { ime: ime, goDana: c.goDana || (existing && existing.goDana) || 30 };
+        return { ime: ime, goDana: c.goDana || 30 };
       });
       saveData();
       renderAll();
@@ -913,7 +925,7 @@ async function loadFromFirebase() {
         data.zaposlenici = clanovi.map(function(c) {
           var ime = c.ime || c.name || '';
           var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
-          return { ime: ime, goDana: c.goDana || (existing && existing.goDana) || 30 };
+          return { ime: ime, goDana: c.goDana || 30 };
         });
       }
     }
@@ -1016,8 +1028,33 @@ function renderDanas() {
     var vrsta = getUnos(currentYear, zi, today);
     if (vrsta) odsutni.push({ ime: z.ime, vrsta: vrsta });
   });
+  var todayDate = new Date();
+  var todayDow = todayDate.getDay();
+  var praznikDanas = isPraznik(today);
   if (!odsutni.length) {
-    list.innerHTML = '<div style="font-size:13px;color:var(--muted-text);padding:4px 0;">Svi su danas na poslu 🎉</div>';
+    var msg = '';
+    if (praznikDanas) {
+      var praznikJokes = [
+        '🎉 ' + praznikDanas + ' — nitko ne radi, svi slave!',
+        '🥳 Državni praznik! ' + praznikDanas + ' — ured je zasluženo prazan.',
+        '🍻 ' + praznikDanas + ' — danas se ne broji ako si u uredu.',
+        '🎊 ' + praznikDanas + '! Tko radi danas, radi dobrovoljno 😄',
+      ];
+      msg = praznikJokes[todayDate.getDate() % praznikJokes.length];
+    } else if (todayDow === 0) {
+      msg = '😴 Nedjelja je — svi se (valjda) odmaraju.';
+    } else if (todayDow === 6) {
+      msg = '🛋️ Subota! Ured je prazan, hladnjak je pun.';
+    } else {
+      var radniJokes = [
+        'Svi su danas na poslu 💪',
+        'Puna ekipa na brodu! 🚢',
+        'Tim je kompletan — nitko ne bježi! 😄',
+        'Svi prisutni i neumorni... za sada 😅',
+      ];
+      msg = radniJokes[todayDate.getDate() % radniJokes.length];
+    }
+    list.innerHTML = '<div style="font-size:13px;color:var(--muted-text);padding:4px 0;">' + msg + '</div>';
     return;
   }
   odsutni.forEach(function(o) {
@@ -1583,7 +1620,7 @@ function renderFun() {
     hasAny = true;
     var br0 = brRank[0];
     var brTitles = br0.val>=4?'Pravi strateg slobodnih dana 🧠':br0.val>=2?'Zna iskoristiti kalendar 😏':'Otkrio tajnu dugih vikenda';
-    wrap.appendChild(awardCard('🌉','Grand master spajanja', br0.name,
+    wrap.appendChild(awardCard('🌉','Grand master bridgea', br0.name,
       br0.val+'× spojio GO uz vikend ili praznik — '+brTitles, brRank, '#f59e0b'));
   }
 
@@ -1626,16 +1663,21 @@ function renderFun() {
   }
 
   // Tim summary na dnu
-  var totalGO = stats.reduce(function(s,a){return s+a.go;},0);
-  var totalDK = stats.reduce(function(s,a){return s+a.dk;},0);
+  var totalGO  = stats.reduce(function(s,a){return s+a.go;},0);
+  var totalSD  = stats.reduce(function(s,a){return s+a.sd;},0);
   var totalSDE = stats.reduce(function(s,a){return s+a.sde;},0);
+  var totalDK  = stats.reduce(function(s,a){return s+a.dk;},0);
+  var totalBO  = stats.reduce(function(s,a){return s+a.bo;},0);
+  var totalSvi = totalGO + totalSD + totalSDE + totalDK + totalBO;
   var summary = document.createElement('div');
   summary.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px 18px;margin-top:4px;';
-  summary.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--muted-text);letter-spacing:.5px;margin-bottom:10px;">📊  TIM OVE GODINE</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">'
-    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalGO+'</div><div style="font-size:11px;color:var(--muted-text);">dana GO</div></div>'
-    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalDK+'</div><div style="font-size:11px;color:var(--muted-text);">darivanja krvi</div></div>'
-    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalSDE+'</div><div style="font-size:11px;color:var(--muted-text);">dana edukacije</div></div>'
+  summary.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--muted-text);letter-spacing:.5px;margin-bottom:10px;">📊  TIM OVE GODINE — UKUPNO ' + totalSvi + ' SLOBODNIH DANA</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center;">'
+    + '<div><div style="font-size:20px;font-weight:800;color:var(--body-text);">'+totalGO+'</div><div style="font-size:10px;color:var(--muted-text);">🏖️ GO</div></div>'
+    + '<div><div style="font-size:20px;font-weight:800;color:var(--body-text);">'+totalSD+'</div><div style="font-size:10px;color:var(--muted-text);">☀️ SD</div></div>'
+    + '<div><div style="font-size:20px;font-weight:800;color:var(--body-text);">'+totalSDE+'</div><div style="font-size:10px;color:var(--muted-text);">📚 EDU</div></div>'
+    + '<div><div style="font-size:20px;font-weight:800;color:var(--body-text);">'+totalDK+'</div><div style="font-size:10px;color:var(--muted-text);">🩸 DK</div></div>'
+    + '<div><div style="font-size:20px;font-weight:800;color:var(--body-text);">'+totalBO+'</div><div style="font-size:10px;color:var(--muted-text);">🤒 BO</div></div>'
     + '</div>';
   wrap.appendChild(summary);
 
@@ -1668,7 +1710,7 @@ function renderStats() {
   // TBODY
   var tbody = document.createElement('tbody');
   data.zaposlenici.forEach(function(z, zi) {
-    var goTotal = z.goDana || 0;
+    var goTotal = z.goDana || 30;
     var goUsed  = countDana(zi, 'GO', currentYear);
     var goLeft  = goTotal - goUsed;
     var may31   = currentYear + '-05-31';
@@ -1783,7 +1825,7 @@ function bulkAddZap() {
   var lines = ta.value.split(/\n/).map(function(s){return s.trim();}).filter(function(s){return s.length>0;});
   lines.forEach(function(ime) {
     if (!tempZap.find(function(z){return z.ime.toLowerCase()===ime.toLowerCase();}))
-      tempZap.push({ime:ime, goDana:20});
+      tempZap.push({ime:ime, goDana:30});
   });
   ta.value = '';
   renderZapList();
