@@ -74,7 +74,7 @@ window.addEventListener("load", function() {
   async function fetchAllUsers() {
     const snap = await _fsdb.collection('allowed_users').get();
     return snap.docs.filter(d=>d.data().email).map(d=>({
-      id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true
+      id: d.id, email: (d.data().email||'').toLowerCase(), admin: d.data().admin===true||d.data().Admin===true
     }));
   }
 
@@ -1683,6 +1683,7 @@ function init(){
     document.getElementById('loginOverlay').classList.add('hidden');
   });
   window.addEventListener('firebase-ready', ()=>{
+    loadTheme();
     // Prikaži admin opcije ako je korisnik admin
     if(window._fbAdmin){
       var adminDiv = document.getElementById('admin-postavke');
@@ -1695,17 +1696,7 @@ function init(){
       document.getElementById('userName').textContent=window._fbUser.name||window._fbUser.email;
       if(window._fbUser.photo){const av=document.getElementById('userAvatar');av.src=window._fbUser.photo;av.style.display='block';}
     }
-    // Čekaj da Firebase modul postavi window._fs* funkcije
-    function waitAndInitFB(attempts) {
-      if (window._fsGetTimClanovi && window._fsGetDeskNames) {
-        initFB();
-      } else if (attempts > 0) {
-        setTimeout(function(){ waitAndInitFB(attempts-1); }, 100);
-      } else {
-        initFB(); // pokušaj i bez Firestore funkcija
-      }
-    }
-    waitAndInitFB(20);
+    initFB();
   });
 
   // Ako Firebase nije ni krenuo (greška konfiguracije)
