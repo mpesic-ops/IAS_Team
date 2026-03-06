@@ -794,10 +794,12 @@ window.addEventListener('auth-denied', function(e) {
 // FIREBASE LOAD
 // ════════════════════════════════════════════════════════════════
 async function loadFromFirebase() {
+  console.log('[GODISNJI] loadFromFirebase START');
   try {
     // 1. Zaposlenici iz zajedničke tim_config kolekcije
     if (window._fsGetTimClanovi) {
       var clanovi = await window._fsGetTimClanovi();
+      console.log('[GODISNJI] clanovi iz Firestore:', clanovi);
       if (clanovi && clanovi.length > 0) {
         data.zaposlenici = clanovi.map(function(c) {
           var ime = c.ime || c.name || '';
@@ -809,6 +811,7 @@ async function loadFromFirebase() {
     // 2. Godine
     if (window._fsGetGodine) {
       var god = await window._fsGetGodine();
+      console.log('[GODISNJI] godine iz Firestore:', god);
       if (god && god.length) data.godine = god;
     }
     // 3. Praznici
@@ -829,6 +832,7 @@ async function loadFromFirebase() {
 }
 
 window.addEventListener('firebase-ready', async function() {
+  console.log('[GODISNJI] firebase-ready primljen');
   loadTheme();
   document.getElementById('connectingOverlay').classList.add('hidden');
   document.getElementById('loginOverlay').classList.add('hidden');
@@ -893,6 +897,7 @@ function loadTheme() {
 }
 
 function renderAll() {
+  console.log('[GODISNJI] renderAll - zaposlenici:', data.zaposlenici, 'godine:', data.godine);
   renderYearTabs();
   renderUserSelect();
   renderMonthTabs();
