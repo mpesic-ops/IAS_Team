@@ -675,6 +675,9 @@ var fbReady = false;
 var unosiListener = null;
 
 var STORAGE_KEY = 'ias-godisnji-v1';
+var currentYear = new Date().getFullYear();
+var currentMonth = new Date().getMonth();
+var currentTab = 'week';
 var data = {
   zaposlenici: [],
   godine: [{ godina: new Date().getFullYear(), hidden: false }],
