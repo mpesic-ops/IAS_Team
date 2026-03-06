@@ -19,7 +19,7 @@
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -135,6 +135,43 @@
   --primary-dark: #1447884;
   --green: #065f46;
 }
+[data-theme="dark"] {
+  --hub-bg: #111827;
+  --hub-card-bg: #1f2937;
+  --hub-card-border: #374151;
+  --hub-card-shadow: rgba(0,0,0,0.4);
+  --hub-body-text: #f9fafb;
+  --hub-muted-text: #9ca3af;
+  --hub-input-border: #4b5563;
+  --hub-input-bg: #374151;
+  --hub-input-color: #f9fafb;
+  --hub-modal-bg: #1f2937;
+  --hub-modal-overlay: rgba(0,0,0,0.7);
+  --hub-btn-secondary-bg: #374151;
+  --hub-btn-secondary-text: #d1d5db;
+  --hub-item-row-bg: #374151;
+  --hub-item-row-border: #4b5563;
+  background-color: #111827;
+}
+[data-theme="pink"] {
+  --hub-bg: #FFF5F7;
+  --hub-card-bg: #ffffff;
+  --hub-card-border: #FFD6E0;
+  --hub-card-shadow: rgba(238,47,88,0.12);
+  --hub-body-text: #30020C;
+  --hub-muted-text: #A21937;
+  --hub-input-border: #F7ADBD;
+  --hub-input-bg: white;
+  --hub-input-color: #30020C;
+  --hub-modal-bg: white;
+  --hub-modal-overlay: rgba(48,2,12,0.5);
+  --hub-btn-secondary-bg: #FFF0F3;
+  --hub-btn-secondary-text: #610519;
+  --hub-item-row-bg: #FFF0F3;
+  --hub-item-row-border: #F7ADBD;
+  background-color: #FFF5F7;
+}
+
 * { box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif; }
 body { min-height:100vh;background:#f0f2f5; }
 
@@ -384,15 +421,32 @@ body { min-height:100vh;background:#f0f2f5; }
         <div style="font-size:11px;font-weight:700;color:var(--muted-text,#6b7280);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">👑 Admin</div>
 
         <!-- Zaposlenici -->
-        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;" id="zap-details">
           <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">👥 Zaposlenici (tim)</summary>
           <div style="padding:12px 14px;">
             <p style="font-size:11px;color:#6b7280;margin-bottom:8px;">Lista članova tima — koriste je Shared Desk i Godišnji odmori.</p>
-            <div style="display:flex;gap:6px;margin-bottom:8px;">
-              <input type="text" id="newTimClanInput" placeholder="Ime i prezime..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')addTimClan()">
-              <button class="btn btn-primary" onclick="addTimClan()">+ Dodaj</button>
+            <div class="tabs-inner" style="margin-bottom:10px;">
+              <button class="tab-inner-btn active" onclick="switchZapTab('single')">Pojedinačno</button>
+              <button class="tab-inner-btn" onclick="switchZapTab('bulk')">📋 Grupni unos</button>
             </div>
-            <div id="timClanList" class="items-list" style="max-height:200px;"></div>
+            <!-- Single -->
+            <div id="zap-tab-single">
+              <div style="display:flex;gap:6px;margin-bottom:8px;">
+                <input type="text" id="newTimClanInput" placeholder="Ime i prezime..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')addTimClan()">
+                <button class="btn btn-primary" onclick="addTimClan()">+ Dodaj</button>
+              </div>
+            </div>
+            <!-- Bulk -->
+            <div id="zap-tab-bulk" style="display:none;">
+              <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Zalijepite imena — jedno po retku:</label>
+              <textarea id="bulkZapInput" rows="5" placeholder="Ana Kovač&#10;Marko Horvat&#10;Ivan Perić&#10;..." style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;"></textarea>
+              <p style="font-size:11px;color:#6b7280;margin:4px 0 6px;">Prazni reci se ignoriraju.</p>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-primary" onclick="bulkAddZapHub()">+ Dodaj sve</button>
+                <button class="btn btn-secondary" style="color:#dc2626;" onclick="bulkReplaceZapHub()">⚠ Zamijeni sve</button>
+              </div>
+            </div>
+            <div id="timClanList" class="items-list" style="max-height:220px;margin-top:8px;"></div>
             <p id="timClanMsg" style="font-size:11px;min-height:14px;margin-top:4px;"></p>
           </div>
         </details>
@@ -476,11 +530,30 @@ body { min-height:100vh;background:#f0f2f5; }
         <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;" open>
           <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🪑 Stolovi</summary>
           <div style="padding:12px 14px;">
-            <div style="display:flex;gap:6px;margin-bottom:8px;">
-              <input type="text" id="hubNewDeskInput" placeholder="Naziv stola..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddDesk()">
-              <button class="btn btn-primary" onclick="hubAddDesk()">+ Dodaj</button>
+            <div class="tabs-inner" style="margin-bottom:8px;">
+              <button class="tab-inner-btn active" onclick="switchDeskTab('single')">Uredi nazive</button>
+              <button class="tab-inner-btn" onclick="switchDeskTab('bulk')">📋 Grupno</button>
+              <button class="tab-inner-btn" onclick="switchDeskTab('add')">➕ Dodaj</button>
             </div>
-            <div id="hubDeskList" class="items-list" style="max-height:200px;"></div>
+            <div id="desk-tab-single">
+              <div id="hubDeskList" class="items-list" style="max-height:200px;"></div>
+            </div>
+            <div id="desk-tab-bulk" style="display:none;">
+              <div style="display:flex;gap:6px;margin-bottom:6px;">
+                <input type="text" id="deskPrefixInput" placeholder="Prefiks (npr. Stol)..." style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                <button class="btn btn-secondary" onclick="hubApplyPrefix('desk')">Primijeni prefiks</button>
+              </div>
+              <textarea id="bulkDeskInput" rows="6" placeholder="Stol 1&#10;Stol 2&#10;Stol 3&#10;..." style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;"></textarea>
+              <p style="font-size:11px;color:#6b7280;margin:4px 0 6px;">Jedno ime po retku. Zamijeni sve postojeće nazive.</p>
+              <button class="btn btn-secondary" style="color:#dc2626;" onclick="hubBulkReplace('desk')">⚠ Zamijeni sve nazive</button>
+            </div>
+            <div id="desk-tab-add" style="display:none;">
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="hubNewDeskInput" placeholder="Naziv stola..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddDesk()">
+                <button class="btn btn-primary" onclick="hubAddDesk()">+ Dodaj</button>
+              </div>
+              <p style="font-size:11px;color:#6b7280;margin-top:4px;">Prazno = auto naziv (Stol N).</p>
+            </div>
             <div style="display:flex;justify-content:flex-end;margin-top:8px;">
               <button class="btn btn-primary" onclick="hubSaveDesks()">💾 Spremi stolove</button>
             </div>
@@ -490,11 +563,30 @@ body { min-height:100vh;background:#f0f2f5; }
         <details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
           <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;background:#f9fafb;">🚗 Parking</summary>
           <div style="padding:12px 14px;">
-            <div style="display:flex;gap:6px;margin-bottom:8px;">
-              <input type="text" id="hubNewParkInput" placeholder="Naziv parkinga..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddPark()">
-              <button class="btn btn-primary" onclick="hubAddPark()">+ Dodaj</button>
+            <div class="tabs-inner" style="margin-bottom:8px;">
+              <button class="tab-inner-btn active" onclick="switchParkTab('single')">Uredi nazive</button>
+              <button class="tab-inner-btn" onclick="switchParkTab('bulk')">📋 Grupno</button>
+              <button class="tab-inner-btn" onclick="switchParkTab('add')">➕ Dodaj</button>
             </div>
-            <div id="hubParkList" class="items-list" style="max-height:200px;"></div>
+            <div id="park-tab-single">
+              <div id="hubParkList" class="items-list" style="max-height:200px;"></div>
+            </div>
+            <div id="park-tab-bulk" style="display:none;">
+              <div style="display:flex;gap:6px;margin-bottom:6px;">
+                <input type="text" id="parkPrefixInput" placeholder="Prefiks (npr. P)..." style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+                <button class="btn btn-secondary" onclick="hubApplyPrefix('park')">Primijeni prefiks</button>
+              </div>
+              <textarea id="bulkParkInput" rows="6" placeholder="P1&#10;P2&#10;P3&#10;..." style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;"></textarea>
+              <p style="font-size:11px;color:#6b7280;margin:4px 0 6px;">Jedno ime po retku. Zamijeni sve postojeće nazive.</p>
+              <button class="btn btn-secondary" style="color:#dc2626;" onclick="hubBulkReplace('park')">⚠ Zamijeni sve nazive</button>
+            </div>
+            <div id="park-tab-add" style="display:none;">
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="hubNewParkInput" placeholder="Naziv parkirnog mjesta..." style="flex:1;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" onkeydown="if(event.key==='Enter')hubAddPark()">
+                <button class="btn btn-primary" onclick="hubAddPark()">+ Dodaj</button>
+              </div>
+              <p style="font-size:11px;color:#6b7280;margin-top:4px;">Prazno = auto naziv (PN).</p>
+            </div>
             <div style="display:flex;justify-content:flex-end;margin-top:8px;">
               <button class="btn btn-primary" onclick="hubSaveParks()">💾 Spremi parking</button>
             </div>
@@ -531,6 +623,86 @@ body { min-height:100vh;background:#f0f2f5; }
 
 <script>
 
+
+// ══════════════════════════════════════════════════════
+// TAB SWITCHERS
+// ══════════════════════════════════════════════════════
+function switchZapTab(t) {
+  ['single','bulk'].forEach(function(n) {
+    document.getElementById('zap-tab-'+n).style.display = n===t?'block':'none';
+  });
+  document.querySelectorAll('#zap-details .tab-inner-btn').forEach(function(b,i) {
+    b.classList.toggle('active', (i===0&&t==='single')||(i===1&&t==='bulk'));
+  });
+}
+
+function switchDeskTab(t) {
+  ['single','bulk','add'].forEach(function(n) {
+    document.getElementById('desk-tab-'+n).style.display = n===t?'block':'none';
+  });
+  document.querySelectorAll('#ptab-desk .tabs-inner:first-child .tab-inner-btn').forEach(function(b,i) {
+    b.classList.toggle('active', (i===0&&t==='single')||(i===1&&t==='bulk')||(i===2&&t==='add'));
+  });
+}
+
+function switchParkTab(t) {
+  ['single','bulk','add'].forEach(function(n) {
+    document.getElementById('park-tab-'+n).style.display = n===t?'block':'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// ZAPOSLENICI — bulk operacije
+// ══════════════════════════════════════════════════════
+function bulkAddZapHub() {
+  var ta = document.getElementById('bulkZapInput');
+  var lines = ta.value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  if (!lines.length) return;
+  lines.forEach(function(ime) {
+    if (!_timClanovi.find(function(c){return c.ime===ime;})) {
+      _timClanovi.push({ ime: ime });
+    }
+  });
+  ta.value = '';
+  renderTimClanovi();
+  switchZapTab('single');
+}
+
+function bulkReplaceZapHub() {
+  var ta = document.getElementById('bulkZapInput');
+  var lines = ta.value.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  if (!lines.length || !confirm('Zamijeniti cijelu listu s ' + lines.length + ' novih članova?')) return;
+  _timClanovi = lines.map(function(ime){ return { ime: ime }; });
+  ta.value = '';
+  renderTimClanovi();
+  switchZapTab('single');
+}
+
+// ══════════════════════════════════════════════════════
+// STOLOVI/PARKING — bulk i prefix operacije
+// ══════════════════════════════════════════════════════
+function hubApplyPrefix(type) {
+  var prefixId = type==='desk' ? 'deskPrefixInput' : 'parkPrefixInput';
+  var prefix = document.getElementById(prefixId).value.trim();
+  if (!prefix) { alert('Unesite prefiks!'); return; }
+  var arr = type==='desk' ? _hubDesks : _hubParks;
+  var newArr = arr.map(function(_,i){ return prefix + ' ' + (i+1); });
+  if (type==='desk') _hubDesks = newArr; else _hubParks = newArr;
+  document.getElementById(prefixId).value = '';
+  if (type==='desk') renderHubDesks(); else renderHubParks();
+  switchDeskTab('single');
+}
+
+function hubBulkReplace(type) {
+  var taId = type==='desk' ? 'bulkDeskInput' : 'bulkParkInput';
+  var names = document.getElementById(taId).value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  if (!names.length || !confirm('Zamijeniti sve nazive?')) return;
+  if (type==='desk') _hubDesks = names; else _hubParks = names;
+  document.getElementById(taId).value = '';
+  if (type==='desk') { renderHubDesks(); switchDeskTab('single'); }
+  else { renderHubParks(); switchParkTab('single'); }
+}
+
 // ══════════════════════════════════════════════════════
 // CORE FUNKCIJE
 // ══════════════════════════════════════════════════════
@@ -553,10 +725,17 @@ function closeModal(id) {
 }
 
 function applyTheme(t) {
+  if (t === 'default') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', t);
+  }
   localStorage.setItem('ias-tema', t);
   ['default','dark','pink'].forEach(function(n) {
     var el = document.getElementById('tema-check-' + n);
     if (el) el.textContent = n === t ? '✓' : '';
+    var btn = document.getElementById('tema-btn-' + n);
+    if (btn) btn.style.outline = n === t ? '2px solid #1a56a0' : 'none';
   });
 }
 
