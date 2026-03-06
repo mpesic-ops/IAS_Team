@@ -1153,7 +1153,7 @@ let deskData={},parkData={};
 let tempDeskNames=[],tempParkNames=[],tempPeople=[];
 let selDeskIdx=null,selParkIdx=null;
 let fbReady=false;
-let _ign={desk:0,park:0,deskNames:0,parkNames:0,people:0};
+let _ign={desk:0,park:0,deskNames:0,parkNames:0,people:0};let _ignTs={desk:0,park:0};
 let floorDay='today'; // 'today' | 'tomorrow'
 
 // ── SYNC ──
@@ -1161,8 +1161,8 @@ function setSS(s,m){const e=document.getElementById('syncStatus');e.className=s;
 
 // ── FIREBASE ──
 function initFB(){
-  window._fbListen('reservations/desk',v=>{if(_ign.desk>0){_ign.desk--;return;}deskData=v||{};sRD();updateFloor();updateCards();});
-  window._fbListen('reservations/park',v=>{if(_ign.park>0){_ign.park--;return;}parkData=v||{};sRP();updateFloor();updateCards();});
+  window._fbListen('reservations/desk',v=>{if(_ignTs.desk>Date.now()||(_ign.desk>0&&_ign.desk--)){return;}deskData=v||{};sRD();updateFloor();updateCards();});
+  window._fbListen('reservations/park',v=>{if(_ignTs.park>Date.now()||(_ign.park>0&&_ign.park--)){return;}parkData=v||{};sRP();updateFloor();updateCards();});
   // Stolovi i parking — čitaj iz Firestore desk_config, fallback na Realtime DB
   if(window._fsGetDeskNames){
     window._fsGetDeskNames().then(function(names){if(names&&names.length){deskNames=names;sRD();updateFloor();}else{window._fbListen('config/deskNames',v=>{if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}});}});
@@ -1184,7 +1184,7 @@ function initFB(){
 }
 async function fbSave(path,val,ik){
   setSS('syncing','⟳ Spremanje...');
-  if(ik)_ign[ik]=(_ign[ik]||0)+1;
+  if(ik)_ign[ik]=(_ign[ik]||0)+1;if(ik==="desk"||ik==="park")_ignTs[ik]=Date.now()+3000;
   try{await window._fbSet(path,val);setSS('synced','✓ Sinkronizirano');}
   catch(e){setSS('error','✗ Greška');if(ik&&_ign[ik]>0)_ign[ik]--;console.error(e);}
 }
