@@ -721,14 +721,26 @@ function countDana(zapIdx, vrsta, godina) {
 // ── Drag select handlers ──────────────────────────────────────
 function initDragSelect() {
   document.addEventListener('mouseup', function() {
-    if (dragState.active) {
-      dragState.active = false;
-      dragState.cells = [];
-      dragState.zapIdx = null;
+    if (dragState.active && dragState.cells.length > 1) {
+      var zapIdx = dragState.zapIdx;
+      var sortedCells = dragState.cells.slice().sort();
+      document.getElementById('currentUser').value = zapIdx;
+      pendingCell = { zapIdx: zapIdx, datum: sortedCells[0] };
+      var od = sortedCells[0];
+      var doDt = sortedCells[sortedCells.length-1];
+      var dp = od.split('-');
+      document.getElementById('unosTitle').textContent = '📝 ' + (data.zaposlenici[zapIdx] ? data.zaposlenici[zapIdx].ime : '') + ' — ' + dp[2]+'/'+dp[1]+'/'+dp[0] + (sortedCells.length > 1 ? ' (+' + (sortedCells.length-1) + ')' : '');
+      document.getElementById('unosDatumOd').value = dp[2]+'/'+dp[1]+'/'+dp[0];
+      document.getElementById('unosDatumDo').value = doDt;
+      document.getElementById('unosBrojDana').value = '';
+      openModal('unos');
     }
+    dragState.active = false;
+    dragState.cells = [];
+    dragState.zapIdx = null;
+    document.querySelectorAll('.drag-selecting').forEach(function(el){ el.classList.remove('drag-selecting'); });
   });
 }
-
 function onCellMouseDown(zapIdx, datum, chipEl, vrsta) {
   dragState.active = true;
   dragState.zapIdx = zapIdx;
@@ -1419,104 +1431,200 @@ function renderFun() {
   if (!wrap) return;
   wrap.innerHTML = '';
   if (!data.zaposlenici.length) {
-    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:30px;">Nema zaposlenika.</p>';
+    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:40px;">Nema zaposlenika.</p>';
     return;
   }
 
-  var facts = [];
   var unosi = data.unosi[currentYear] || {};
 
-  // Pripremi stats po zaposleniku
+  // ── Izračun bridge: GO dan koji je direktno spojen s vikendom/praznikom ──
+  // "direktno spojen" = nema radnog dana između tog GO dana i vikenda/praznika
+  function isFreeDay(ds) {
+    var d = new Date(ds);
+    return d.getDay() === 0 || d.getDay() === 6 || !!isPraznik(ds);
+  }
+  function isConnectedToFreeDay(ds) {
+    // Provjeri susjedne dane - ako je slobodan dan odmah prije ili poslije
+    var d = new Date(ds);
+    var prev = new Date(d); prev.setDate(prev.getDate()-1);
+    var next = new Date(d); next.setDate(next.getDate()+1);
+    var pDs = prev.getFullYear()+'-'+pad(prev.getMonth()+1)+'-'+pad(prev.getDate());
+    var nDs = next.getFullYear()+'-'+pad(next.getMonth()+1)+'-'+pad(next.getDate());
+    return isFreeDay(pDs) || isFreeDay(nDs);
+  }
+
   var stats = data.zaposlenici.map(function(z, zi) {
     var zapUnosi = unosi[zi] || {};
-    var goUsed = 0, sd = 0, sde = 0, dk = 0, bo = 0, bridgeDays = 0;
+    var go=0, sd=0, sde=0, dk=0, bo=0, bridge=0;
+    // Skupi sve GO datume
+    var goDates = [];
     Object.entries(zapUnosi).forEach(function(e) {
-      var ds = e[0], vrsta = e[1];
-      if (vrsta === 'GO') goUsed++;
-      if (vrsta === 'SD') sd++;
-      if (vrsta === 'SDE') sde++;
-      if (vrsta === 'DK') dk++;
-      if (vrsta === 'BO') bo++;
-      // Provjeri je li GO dan između vikenda/praznika (bridge)
-      if (vrsta === 'GO') {
-        var d = new Date(ds);
-        var prev = new Date(d); prev.setDate(prev.getDate()-1);
-        var next = new Date(d); next.setDate(next.getDate()+1);
-        var prevDs = prev.getFullYear()+'-'+pad(prev.getMonth()+1)+'-'+pad(prev.getDate());
-        var nextDs = next.getFullYear()+'-'+pad(next.getMonth()+1)+'-'+pad(next.getDate());
-        var prevIsOff = prev.getDay()===0||prev.getDay()===6||isPraznik(prevDs);
-        var nextIsOff = next.getDay()===0||next.getDay()===6||isPraznik(nextDs);
-        if (prevIsOff || nextIsOff) bridgeDays++;
-      }
+      var v = e[1];
+      if(v==='GO') { go++; goDates.push(e[0]); }
+      if(v==='SD') sd++;
+      if(v==='SDE') sde++;
+      if(v==='DK') dk++;
+      if(v==='BO') bo++;
     });
-    return { ime: z.ime, goUsed: goUsed, goDana: z.goDana||30, sd: sd, sde: sde, dk: dk, bo: bo, bridgeDays: bridgeDays };
+    // Bridge: pronađi grupe uzastopnih GO dana, provjeri je li grupa spojena s free dayem
+    goDates.sort();
+    if (goDates.length) {
+      // Grupiranje uzastopnih radnih GO dana (preskoči vikende između)
+      var groups = [];
+      var current = [goDates[0]];
+      for (var gi = 1; gi < goDates.length; gi++) {
+        var prev = new Date(goDates[gi-1]);
+        var cur  = new Date(goDates[gi]);
+        var diff = (cur - prev) / 86400000;
+        // Isti blok ako razlika <= 3 dana (vikend između je ok)
+        if (diff <= 3) { current.push(goDates[gi]); }
+        else { groups.push(current); current = [goDates[gi]]; }
+      }
+      groups.push(current);
+      // Svaka grupa koja je spojena s vikendom/praznikom = 1 bridge
+      groups.forEach(function(g) {
+        var first = g[0], last = g[g.length-1];
+        var dFirst = new Date(first); dFirst.setDate(dFirst.getDate()-1);
+        var dLast  = new Date(last);  dLast.setDate(dLast.getDate()+1);
+        var dsF = dFirst.getFullYear()+'-'+pad(dFirst.getMonth()+1)+'-'+pad(dFirst.getDate());
+        var dsL = dLast.getFullYear()+'-'+pad(dLast.getMonth()+1)+'-'+pad(dLast.getDate());
+        if (isFreeDay(dsF) || isFreeDay(dsL)) bridge++;
+      });
+    }
+    return {ime:z.ime, goDana:z.goDana||30, go:go, sd:sd, sde:sde, dk:dk, bo:bo, bridge:bridge};
   });
 
-  function addFact(emoji, text) { facts.push(emoji + ' ' + text); }
-  function top(arr, key) { return arr.slice().sort(function(a,b){ return b[key]-a[key]; })[0]; }
-  function allWith(arr, key, val) { return arr.filter(function(a){ return a[key]===(val!==undefined?val:a[key]) && a[key]>0; }); }
+  // ── Award kartica builder ─────────────────────────────────────
+  function awardCard(emoji, award, winner, subtitle, rankList, color) {
+    var c = document.createElement('div');
+    c.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:0;margin-bottom:14px;overflow:hidden;';
 
-  // 🏆 Najveći GO
-  var topGO = top(stats, 'goUsed');
-  if (topGO && topGO.goUsed > 0)
-    addFact('🏆', 'Najduži odmor: <b>' + topGO.ime + '</b> — ' + topGO.goUsed + ' dana');
+    // Header s bojom
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'background:'+color+';padding:14px 18px 10px;';
+    hdr.innerHTML = '<div style="font-size:28px;margin-bottom:2px;">'+emoji+'</div>'
+      + '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:.8px;text-transform:uppercase;opacity:.85;">'+award+'</div>';
+    c.appendChild(hdr);
 
-  // 💼 Tko još nije uzeo GO
-  var nulGO = stats.filter(function(s){ return s.goUsed === 0; });
-  if (nulGO.length > 0)
-    addFact('💼', 'Još nije iskoristio GO: <b>' + nulGO.map(function(s){ return s.ime; }).join(', ') + '</b>');
+    // Winner
+    var body = document.createElement('div');
+    body.style.cssText = 'padding:12px 18px 14px;';
+    body.innerHTML = '<div style="font-size:17px;font-weight:700;color:var(--body-text);margin-bottom:2px;">'+winner+'</div>'
+      + '<div style="font-size:12px;color:var(--muted-text);">'+subtitle+'</div>';
 
-  // 🌉 Majstor spajanja — najviše GO dana spojenih uz vikend ili praznik
-  var topBridge = top(stats, 'bridgeDays');
-  if (topBridge && topBridge.bridgeDays > 0)
-    addFact('🌉', 'Majstor spajanja vikenda/praznika: <b>' + topBridge.ime + '</b> — ' + topBridge.bridgeDays + ' puta');
-
-  // 🩸 Tko je dao najviše krvi
-  var topDK = top(stats, 'dk');
-  if (topDK && topDK.dk > 0) {
-    var sviDK = allWith(stats, 'dk', topDK.dk);
-    addFact('🩸', 'Najviše darivanja krvi: <b>' + sviDK.map(function(s){ return s.ime; }).join(', ') + '</b> — ' + topDK.dk + 'x');
+    // Mini rang lista
+    if (rankList && rankList.length > 1) {
+      var tbl = document.createElement('div');
+      tbl.style.cssText = 'margin-top:10px;border-top:1px solid var(--card-border);padding-top:10px;';
+      rankList.forEach(function(r, i) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+        var medal = ['🥇','🥈','🥉'][i] || '<span style="width:18px;display:inline-block;">&nbsp;</span>';
+        var barMax = rankList[0].val;
+        var pct = barMax > 0 ? Math.round(r.val / barMax * 100) : 0;
+        row.innerHTML = '<span style="font-size:14px;width:22px;">'+medal+'</span>'
+          + '<span style="font-size:12px;min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+r.name+'</span>'
+          + '<div style="flex:1;background:var(--input-border);border-radius:3px;height:8px;overflow:hidden;">'
+          +   '<div style="height:100%;border-radius:3px;background:'+color+';width:'+pct+'%;"></div>'
+          + '</div>'
+          + '<span style="font-size:12px;font-weight:600;min-width:36px;text-align:right;">'+r.label+'</span>';
+        tbl.appendChild(row);
+      });
+      body.appendChild(tbl);
+    }
+    c.appendChild(body);
+    return c;
   }
 
-  // 📚 Tko se najviše educirao
-  var topSDE = top(stats, 'sde');
-  if (topSDE && topSDE.sde > 0) {
-    var sviSDE = allWith(stats, 'sde', topSDE.sde);
-    addFact('📚', 'Najviše edukacija: <b>' + sviSDE.map(function(s){ return s.ime; }).join(', ') + '</b> — ' + topSDE.sde + ' dan' + (topSDE.sde === 1 ? '' : 'a'));
+  function sorted(key) { return stats.slice().sort(function(a,b){return b[key]-a[key];}); }
+  function toRank(arr, key, fmt) {
+    return arr.filter(function(s){return s[key]>0;}).map(function(s){
+      return {name:s.ime, val:s[key], label:fmt(s[key])};
+    });
   }
 
-  // 🤒 Tko je bio najdulje na bolovanju
-  var topBO = top(stats, 'bo');
-  if (topBO && topBO.bo > 0)
-    addFact('🤒', 'Najdulje bolovanje: <b>' + topBO.ime + '</b> — ' + topBO.bo + ' dan' + (topBO.bo === 1 ? '' : 'a'));
+  var hasAny = false;
 
-  // ☀️ Tko je uzeo najviše slobodnih dana
-  var topSD = top(stats, 'sd');
-  if (topSD && topSD.sd > 0)
-    addFact('☀️', 'Najviše slobodnih dana: <b>' + topSD.ime + '</b> — ' + topSD.sd + ' dan' + (topSD.sd === 1 ? '' : 'a'));
-
-  // 📊 Ukupno GO tim
-  var totalUsed = stats.reduce(function(s,a){ return s+a.goUsed; }, 0);
-  var avgUsed = Math.round(totalUsed / (stats.length || 1));
-  addFact('📊', 'Tim ukupno iskoristio: <b>' + totalUsed + ' dana</b> GO — prosjek ' + avgUsed + ' po osobi');
-
-  // 🏖️ Tko ima najmanje preostalog GO (treba uzeti odmor!)
-  var leastLeft = stats.slice().sort(function(a,b){ return (a.goDana-a.goUsed)-(b.goDana-b.goUsed); })[0];
-  if (leastLeft && leastLeft.goUsed > 0)
-    addFact('⚠️', 'Najmanje preostalog GO: <b>' + leastLeft.ime + '</b> — samo ' + (leastLeft.goDana - leastLeft.goUsed) + ' dan' + ((leastLeft.goDana-leastLeft.goUsed)===1?'':'a') + ' ostalo');
-
-  if (facts.length === 0) {
-    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:30px;">Nema još unesenih podataka za ovu godinu.</p>';
-    return;
+  // 🏖️ GO iskorištenost
+  var goRank = stats.slice().sort(function(a,b){return (b.go/b.goDana)-(a.go/a.goDana);}).filter(function(s){return s.go>0;});
+  if (goRank.length) {
+    hasAny = true;
+    var top = goRank[0];
+    var pct = Math.round(top.go/top.goDana*100);
+    var titles = pct>=100?'Iskoristio svaki dan! 🎯':pct>=80?'Gotovo sve iskoristio 👏':pct>=50?'Solidno na putu 💪':'Još ima dana za uživanje';
+    wrap.appendChild(awardCard('🏖️','Kralj odmora', top.ime,
+      top.go+' / '+top.goDana+' dana  ('+pct+'%) — '+titles,
+      goRank.map(function(s){return {name:s.ime, val:s.go/s.goDana, label:s.go+'/'+s.goDana};}),
+      '#3b82f6'));
   }
 
-  facts.forEach(function(f) {
-    var p = document.createElement('div');
-    p.style.cssText = 'padding:14px 16px;border-radius:8px;background:var(--card-bg);border:1px solid var(--card-border);margin-bottom:10px;font-size:14px;line-height:1.5;';
-    p.innerHTML = f;
-    wrap.appendChild(p);
-  });
+  // 🌉 Bridge majstor
+  var brRank = toRank(sorted('bridge'), 'bridge', function(v){return v+'x';});
+  if (brRank.length) {
+    hasAny = true;
+    var br0 = brRank[0];
+    var brTitles = br0.val>=4?'Pravi strateg slobodnih dana 🧠':br0.val>=2?'Zna iskoristiti kalendar 😏':'Otkrio tajnu dugih vikenda';
+    wrap.appendChild(awardCard('🌉','Grand master bridgea', br0.name,
+      br0.val+'× spojio GO uz vikend ili praznik — '+brTitles, brRank, '#f59e0b'));
+  }
+
+  // 🩸 Darivatelj krvi
+  var dkRank = toRank(sorted('dk'), 'dk', function(v){return v+'×';});
+  if (dkRank.length) {
+    hasAny = true;
+    var dk0 = dkRank[0];
+    var dkTitle = dk0.val>=3?'Heroj u crvenoj 🦸':dk0.val>=2?'Redoviti darivatelj ❤️':'Srce na dlanu';
+    wrap.appendChild(awardCard('🩸','Heroj darivanja krvi', dk0.name,
+      dk0.val+'× dao krv ove godine — '+dkTitle, dkRank, '#ef4444'));
+  }
+
+  // 📚 Edukator
+  var sdeRank = toRank(sorted('sde'), 'sde', function(v){return v+'d';});
+  if (sdeRank.length) {
+    hasAny = true;
+    var sde0 = sdeRank[0];
+    var sdeTitle = sde0.val>=5?'Lifelong learner 🎓':sde0.val>=3?'Uvijek uči nešto novo 📖':'Znanje je moć';
+    wrap.appendChild(awardCard('📚','Najmarljiviji učenik', sde0.name,
+      sde0.val+' dana edukacije — '+sdeTitle, sdeRank, '#8b5cf6'));
+  }
+
+  // ☀️ Slobodni dani
+  var sdRank = toRank(sorted('sd'), 'sd', function(v){return v+'d';});
+  if (sdRank.length) {
+    hasAny = true;
+    var sd0 = sdRank[0];
+    wrap.appendChild(awardCard('☀️','Slobodni duh', sd0.name,
+      sd0.val+' slobodnih dana — sve su zasluženi!', sdRank, '#10b981'));
+  }
+
+  // 🤒 Bolovanje - s taktom
+  var boRank = toRank(sorted('bo'), 'bo', function(v){return v+'d';});
+  if (boRank.length) {
+    hasAny = true;
+    var bo0 = boRank[0];
+    wrap.appendChild(awardCard('🤒','Čeličnog zdravlja (ne)', bo0.name,
+      bo0.val+' dana bolovanja — nadam se da si bolje! 💊', boRank, '#6b7280'));
+  }
+
+  // Tim summary na dnu
+  var totalGO = stats.reduce(function(s,a){return s+a.go;},0);
+  var totalDK = stats.reduce(function(s,a){return s+a.dk;},0);
+  var totalSDE = stats.reduce(function(s,a){return s+a.sde;},0);
+  var summary = document.createElement('div');
+  summary.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px 18px;margin-top:4px;';
+  summary.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--muted-text);letter-spacing:.5px;margin-bottom:10px;">📊  TIM OVE GODINE</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">'
+    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalGO+'</div><div style="font-size:11px;color:var(--muted-text);">dana GO</div></div>'
+    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalDK+'</div><div style="font-size:11px;color:var(--muted-text);">darivanja krvi</div></div>'
+    + '<div><div style="font-size:22px;font-weight:800;color:var(--body-text);">'+totalSDE+'</div><div style="font-size:11px;color:var(--muted-text);">dana edukacije</div></div>'
+    + '</div>';
+  wrap.appendChild(summary);
+
+  if (!hasAny) {
+    wrap.innerHTML = '<p style="color:var(--muted-text);text-align:center;padding:40px;">Nema još unesenih podataka za '+currentYear+'. 🏝️</p>';
+  }
 }
+
 
 function renderStats() {
   var tbl = document.getElementById('statsTable');
