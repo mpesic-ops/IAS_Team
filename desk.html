@@ -1153,7 +1153,7 @@ let deskData={},parkData={};
 let tempDeskNames=[],tempParkNames=[],tempPeople=[];
 let selDeskIdx=null,selParkIdx=null;
 let fbReady=false;
-let _ign={desk:false,park:false,deskNames:false,parkNames:false,people:false};
+let _ign={desk:0,park:0,deskNames:0,parkNames:0,people:0};
 let floorDay='today'; // 'today' | 'tomorrow'
 
 // ── SYNC ──
@@ -1161,19 +1161,19 @@ function setSS(s,m){const e=document.getElementById('syncStatus');e.className=s;
 
 // ── FIREBASE ──
 function initFB(){
-  window._fbListen('reservations/desk',v=>{if(_ign.desk){_ign.desk=false;return;}deskData=v||{};sRD();updateFloor();updateCards();});
-  window._fbListen('reservations/park',v=>{if(_ign.park){_ign.park=false;return;}parkData=v||{};sRP();updateFloor();updateCards();});
+  window._fbListen('reservations/desk',v=>{if(_ign.desk>0){_ign.desk--;return;}deskData=v||{};sRD();updateFloor();updateCards();});
+  window._fbListen('reservations/park',v=>{if(_ign.park>0){_ign.park--;return;}parkData=v||{};sRP();updateFloor();updateCards();});
   // Stolovi i parking — čitaj iz Firestore desk_config, fallback na Realtime DB
   if(window._fsGetDeskNames){
     window._fsGetDeskNames().then(function(names){if(names&&names.length){deskNames=names;sRD();updateFloor();}else{window._fbListen('config/deskNames',v=>{if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}});}});
-  } else { window._fbListen('config/deskNames',v=>{if(_ign.deskNames){_ign.deskNames=false;return;}if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}}); }
+  } else { window._fbListen('config/deskNames',v=>{if(_ign.deskNames>0){_ign.deskNames--;return;}if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}}); }
   if(window._fsGetParkNames){
     window._fsGetParkNames().then(function(names){if(names&&names.length){parkNames=names;sRP();updateFloor();}else{window._fbListen('config/parkNames',v=>{if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}});}});
-  } else { window._fbListen('config/parkNames',v=>{if(_ign.parkNames){_ign.parkNames=false;return;}if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}}); }
+  } else { window._fbListen('config/parkNames',v=>{if(_ign.parkNames>0){_ign.parkNames--;return;}if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}}); }
   // Tim zaposlenici — čitaj iz zajedničke Firestore kolekcije
   if(window._fsGetTimClanovi){
     window._fsGetTimClanovi().then(function(clanovi){if(clanovi&&clanovi.length){people=clanovi.map(function(c){return c.ime||c.name||c;});sRD();sRP();}else{window._fbListen('config/people',v=>{if(v&&Array.isArray(v)){people=v;sRD();sRP();}});}});
-  } else { window._fbListen('config/people',v=>{if(_ign.people){_ign.people=false;return;}if(v&&Array.isArray(v)){people=v;sRD();sRP();}}); }
+  } else { window._fbListen('config/people',v=>{if(_ign.people>0){_ign.people--;return;}if(v&&Array.isArray(v)){people=v;sRD();sRP();}}); }
   // Praznici — učitaj za blokiranje rezervacija
   if(window._fsGetPraznici){
     window._fsGetPraznici().then(function(overrides){window._sdPraznici=overrides||{};});
@@ -1184,9 +1184,9 @@ function initFB(){
 }
 async function fbSave(path,val,ik){
   setSS('syncing','⟳ Spremanje...');
-  if(ik)_ign[ik]=true;
+  if(ik)_ign[ik]=(_ign[ik]||0)+1;
   try{await window._fbSet(path,val);setSS('synced','✓ Sinkronizirano');}
-  catch(e){setSS('error','✗ Greška');if(ik)_ign[ik]=false;console.error(e);}
+  catch(e){setSS('error','✗ Greška');if(ik&&_ign[ik]>0)_ign[ik]--;console.error(e);}
 }
 
 // ── DATUM ──
@@ -1353,7 +1353,7 @@ async function saveNames(type){
 }
 
 // ── TABLICA ──
-function makeSelect(data,key,isPark){
+async function makeSelect(data,key,isPark){
   const sel=document.createElement('select');
   sel.innerHTML='<option value="">—</option>';
   people.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
