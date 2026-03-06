@@ -848,8 +848,11 @@ function renderTimClanovi() {
     row.appendChild(nameInput); row.appendChild(delBtn);
     list.appendChild(row);
   });
-  // Spremi gumb - iznad liste
+  // Spremi gumb - ukloni stari, dodaj novi iznad liste
+  var oldSR = document.getElementById('timClanSaveRow');
+  if (oldSR) oldSR.remove();
   var saveRow = document.createElement('div');
+  saveRow.id = 'timClanSaveRow';
   saveRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
   var saveBtn = document.createElement('button');
   saveBtn.className = 'btn btn-primary';
