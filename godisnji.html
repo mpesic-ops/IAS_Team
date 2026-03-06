@@ -5,6 +5,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <!-- v202603062337 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IAS Godišnji Odmori</title>
 <style>
@@ -731,8 +734,8 @@ function initDragSelect() {
     if (dragState.active && dragState.cells.length > 1) {
       var zapIdx = dragState.zapIdx;
       var sortedCells = dragState.cells.slice().sort();
-      _dragJustFired = true;
-      setTimeout(function(){ _dragJustFired = false; }, 300);
+      window._dragJustFired = true;
+      setTimeout(function(){ window._dragJustFired = false; }, 300);
       document.getElementById('currentUser').value = zapIdx;
       pendingCell = { zapIdx: zapIdx, datum: sortedCells[0] };
       var od = sortedCells[0];
@@ -788,7 +791,7 @@ var currentMonth = new Date().getMonth();
 var currentTab = 'week';
 var pendingCell = null;
 var pendingDragCells = null;
-var _dragJustFired = false;
+window._dragJustFired = false;
 var data = {
   zaposlenici: [],
   godine: [{ godina: new Date().getFullYear(), hidden: false }],
@@ -974,6 +977,7 @@ window.addEventListener('firebase-ready', async function() {
   loadFromFirebase().then(function() {
     startUnosiListener(currentYear);
     renderAll();
+    initTabs();
   });
 });
 
@@ -1315,7 +1319,7 @@ function renderCalendar() {
               dragWasActive = dragState.cells && dragState.cells.length > 1;
             });
             chip.onclick = function() {
-              if (_dragJustFired || dragWasActive) { dragWasActive = false; return; }
+              if (window._dragJustFired || dragWasActive) { dragWasActive = false; return; }
               onCellClick(zapIdx, datum, v);
             };
           })(zi, ds2, vrsta, chip);
