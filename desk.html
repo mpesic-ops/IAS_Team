@@ -51,7 +51,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -1170,7 +1170,7 @@ const DAYS_F=['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','S
 
 let deskNames=['Stol 1','Stol 2','Stol 3','Stol 4','Stol 5','Stol 6','Stol 7','Stol 8','Stol 9','Stol 10','Stol 11','Stol 12','Stol 13','Stol 14','Stol 15','Stol 16','Stol 17','Stol 18','Stol 19','Stol 20','3D-1','3D-2','3D-3'];
 let parkNames=Array.from({length:8},(_,i)=>`P${i+1}`);
-let people=['Ana Kovač','Marko Horvat','Ivan Perić','Petra Novak','Luka Jurić','Maja Blažić','Tomislav Knez','Sara Vuković','Filip Šimić','Nina Babić'];
+let people=[];
 let deskData={},parkData={};
 let tempDeskNames=[],tempParkNames=[],tempPeople=[];
 let selDeskIdx=null,selParkIdx=null;
