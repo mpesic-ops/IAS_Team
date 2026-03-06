@@ -349,16 +349,13 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 #appWrap { display:none; }
 
 </style>
-<script type="module">
-  import { initializeApp }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
-                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc, getDoc, onSnapshot }
-                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
   // ================================================================
-  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA (isti kao Shared Desk):
-  c  const firebaseConfig = {
+  // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -369,90 +366,65 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 };
   // ================================================================
 
-  const app    = initializeApp(firebaseConfig);
-  const auth   = getAuth(app);
-  const fsdb   = getFirestore(app);
-  const provider = new GoogleAuthProvider();
+  firebase.initializeApp(firebaseConfig);
+  const _auth = firebase.auth();
+  const _fsdb = firebase.firestore();
+  const _provider = new firebase.auth.GoogleAuthProvider();
 
-  // ── Auth ──────────────────────────────────────────────────────
-  window._fbSignIn    = () => signInWithPopup(auth, provider);
-  window._fbSignOut   = () => signOut(auth);
-  window._fbAuth      = auth;
-  window._fbResetPassword = (email) => sendPasswordResetEmail(auth, email);
-  window._fbEmailSignIn   = (email, pwd) => signInWithEmailAndPassword(auth, email, pwd);
+  window._fbSignIn        = () => _auth.signInWithPopup(_provider);
+  window._fbSignOut       = () => _auth.signOut();
+  window._fbAuth          = _auth;
+  window._fbResetPassword = (e)    => _auth.sendPasswordResetEmail(e);
+  window._fbEmailSignIn   = (e, p) => _auth.signInWithEmailAndPassword(e, p);
 
-  // ── Provjera pristupa ─────────────────────────────────────────
   async function checkAccess(email) {
     try {
-      const snap = await getDocs(collection(fsdb, 'allowed_users'));
-      const found = snap.docs.find(d => {
-        const e = (d.data().email || d.data().Email || '').toLowerCase();
-        return e === email.toLowerCase();
-      });
+      const snap = await _fsdb.collection('allowed_users').get();
+      const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
       if (!found) return { allowed: false, admin: false };
-      return { allowed: true, admin: found.data().admin === true || found.data().Admin === true };
+      return { allowed: true, admin: found.data().admin === true };
     } catch(e) { return { allowed: false, admin: false }; }
   }
 
-  // ── Zaposlenici iz Firestore ───────────────────────────────────
-  // Kolekcija: godisnji_zaposlenici — [{ime, goDana}]
-  window._fsGetZaposlenici = async () => {
-    const snap = await getDocs(collection(fsdb, 'godisnji_zaposlenici'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                    .sort((a,b) => (a.ime||'').localeCompare(b.ime||''));
+  // ── Tim zaposlenici ───────────────────────────────────────────
+  window._fsGetTimClanovi  = async () => {
+    const d = await _fsdb.collection('tim_config').doc('zaposlenici').get();
+    return d.exists ? (d.data().lista || []) : [];
   };
-  window._fsSaveZaposlenici = async (lista) => {
-    // Spremi cijelu listu kao jedan dokument za jednostavnost
-    await setDoc(doc(fsdb, 'godisnji_config', 'zaposlenici'), { lista });
-  };
-  window._fsGetZaposleniciConfig = async () => {
-    const d = await getDoc(doc(fsdb, 'godisnji_config', 'zaposlenici'));
-    return d.exists() ? (d.data().lista || []) : [];
-  };
-  // Zajednička lista tima (ista kolekcija kao Hub i Shared Desk)
-  window._fsGetTimClanovi = async () => {
-    const d = await getDoc(doc(fsdb, 'tim_config', 'zaposlenici'));
-    return d.exists() ? (d.data().lista || []) : [];
-  };
-  window._fsSaveTimClanovi = async (lista) => {
-    await setDoc(doc(fsdb, 'tim_config', 'zaposlenici'), { lista });
-  };
+  window._fsSaveTimClanovi = async (lista) =>
+    _fsdb.collection('tim_config').doc('zaposlenici').set({ lista });
 
   // ── Godine ────────────────────────────────────────────────────
-  window._fsGetGodine = async () => {
-    const d = await getDoc(doc(fsdb, 'godisnji_config', 'godine'));
-    return d.exists() ? (d.data().lista || [{ godina: new Date().getFullYear(), hidden: false }]) : [{ godina: new Date().getFullYear(), hidden: false }];
+  window._fsGetGodine  = async () => {
+    const d = await _fsdb.collection('godisnji_config').doc('godine').get();
+    return d.exists ? (d.data().lista || [{ godina: new Date().getFullYear(), hidden: false }])
+                    : [{ godina: new Date().getFullYear(), hidden: false }];
   };
-  window._fsSaveGodine = async (lista) => {
-    await setDoc(doc(fsdb, 'godisnji_config', 'godine'), { lista });
-  };
+  window._fsSaveGodine = async (lista) =>
+    _fsdb.collection('godisnji_config').doc('godine').set({ lista });
 
-  // ── Praznici override ─────────────────────────────────────────
-  window._fsGetPraznici = async () => {
-    const d = await getDoc(doc(fsdb, 'godisnji_config', 'praznici'));
-    return d.exists() ? (d.data().overrides || {}) : {};
+  // ── Praznici ──────────────────────────────────────────────────
+  window._fsGetPraznici  = async () => {
+    const d = await _fsdb.collection('godisnji_config').doc('praznici').get();
+    return d.exists ? (d.data().overrides || {}) : {};
   };
-  window._fsSavePraznici = async (overrides) => {
-    await setDoc(doc(fsdb, 'godisnji_config', 'praznici'), { overrides });
-  };
+  window._fsSavePraznici = async (overrides) =>
+    _fsdb.collection('godisnji_config').doc('praznici').set({ overrides });
 
-  // ── Unosi (slobodni dani) ─────────────────────────────────────
-  // Dokument po godini: godisnji_unosi/{godina} = { unosi: {zapIme: {datum: vrsta}} }
+  // ── Unosi ─────────────────────────────────────────────────────
   window._fsGetUnosi = async (godina) => {
-    const d = await getDoc(doc(fsdb, 'godisnji_unosi', String(godina)));
-    return d.exists() ? (d.data().unosi || {}) : {};
+    const d = await _fsdb.collection('godisnji_unosi').doc(String(godina)).get();
+    return d.exists ? (d.data().unosi || {}) : {};
   };
-  window._fsSaveUnosi = async (godina, unosi) => {
-    await setDoc(doc(fsdb, 'godisnji_unosi', String(godina)), { unosi });
-  };
-  window._fsListenUnosi = (godina, cb) => {
-    return onSnapshot(doc(fsdb, 'godisnji_unosi', String(godina)), snap => {
-      cb(snap.exists() ? (snap.data().unosi || {}) : {});
+  window._fsSaveUnosi = async (godina, unosi) =>
+    _fsdb.collection('godisnji_unosi').doc(String(godina)).set({ unosi });
+  window._fsListenUnosi = (godina, cb) =>
+    _fsdb.collection('godisnji_unosi').doc(String(godina)).onSnapshot(snap => {
+      cb(snap.exists ? (snap.data().unosi || {}) : {});
     });
-  };
 
   // ── Auth state ────────────────────────────────────────────────
-  onAuthStateChanged(auth, async user => {
+  _auth.onAuthStateChanged(async function(user) {
     if (user) {
       const { allowed, admin } = await checkAccess(user.email);
       if (allowed) {
@@ -461,7 +433,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
         window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
         window.dispatchEvent(new Event('firebase-ready'));
       } else {
-        signOut(auth);
+        _auth.signOut();
         window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
       }
     } else {
