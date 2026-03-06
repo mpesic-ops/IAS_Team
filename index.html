@@ -572,7 +572,7 @@ function bulkAddZapHub() {
   if (!lines.length) return;
   lines.forEach(function(ime) {
     if (!_timClanovi.find(function(c){return c.ime===ime;})) {
-      _timClanovi.push({ ime: ime });
+      _timClanovi.push({ ime: ime, goDana: 30 });
     }
   });
   ta.value = '';
@@ -835,6 +835,16 @@ function renderTimClanovi() {
     nameInput.value = c.ime || '';
     nameInput.style.cssText = 'flex:1;border:none;background:transparent;font-size:12px;';
     nameInput.onchange = (function(idx){ return function(){ _timClanovi[idx].ime = this.value; }; })(i);
+    var danaInput = document.createElement('input');
+    danaInput.type = 'number';
+    danaInput.min = '1'; danaInput.max = '365';
+    danaInput.value = c.goDana || 30;
+    danaInput.title = 'Broj dana godišnjeg odmora';
+    danaInput.style.cssText = 'width:52px;border:1px solid #e5e7eb;border-radius:4px;background:#f9fafb;font-size:12px;text-align:center;padding:2px 4px;';
+    danaInput.onchange = (function(idx){ return function(){ _timClanovi[idx].goDana = parseInt(this.value)||30; }; })(i);
+    var danaLbl = document.createElement('span');
+    danaLbl.textContent = 'dana';
+    danaLbl.style.cssText = 'font-size:11px;color:#6b7280;margin:0 6px 0 3px;';
     var delBtn = document.createElement('button');
     delBtn.className = 'btn btn-secondary';
     delBtn.style.cssText = 'padding:2px 8px;font-size:11px;';
@@ -845,7 +855,7 @@ function renderTimClanovi() {
         renderTimClanovi();
       }
     }; })(i);
-    row.appendChild(nameInput); row.appendChild(delBtn);
+    row.appendChild(nameInput); row.appendChild(danaInput); row.appendChild(danaLbl); row.appendChild(delBtn);
     list.appendChild(row);
   });
   // Spremi gumb - ukloni stari, dodaj novi iznad liste
@@ -866,7 +876,7 @@ async function addTimClan() {
   var inp = document.getElementById('newTimClanInput');
   var ime = inp.value.trim();
   if (!ime) return;
-  _timClanovi.push({ ime: ime });
+  _timClanovi.push({ ime: ime, goDana: 30 });
   inp.value = '';
   renderTimClanovi();
 }
