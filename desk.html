@@ -125,18 +125,19 @@ window.addEventListener("load", function() {
     return d.exists ? (d.data().overrides || {}) : {};
   };
 
-  _auth.onAuthStateChanged(async function(user) {
+  _auth.onAuthStateChanged(function(user) {
     if (user) {
-      const { allowed, admin } = await checkAccess(user.email);
-      if (allowed) {
-        window._fbReady = true;
-        window._fbAdmin = admin;
-        window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
-        window.dispatchEvent(new Event('firebase-ready'));
-      } else {
-        _auth.signOut();
-        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
-      }
+      checkAccess(user.email).then(function(result) {
+        if (result.allowed) {
+          window._fbReady = true;
+          window._fbAdmin = result.admin;
+          window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
+          window.dispatchEvent(new Event('firebase-ready'));
+        } else {
+          _auth.signOut();
+          window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
+        }
+      });
     } else {
       window.dispatchEvent(new Event('auth-needed'));
     }
