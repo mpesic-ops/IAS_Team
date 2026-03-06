@@ -381,7 +381,7 @@ window.addEventListener("load", function() {
       const snap = await _fsdb.collection('allowed_users').get();
       const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
       if (!found) return { allowed: false, admin: false };
-      return { allowed: true, admin: found.data().admin === true };
+      return { allowed: true, admin: found.data().admin === true || found.data().Admin === true };
     } catch(e) { return { allowed: false, admin: false }; }
   }
 
@@ -906,6 +906,7 @@ async function loadFromFirebase() {
 }
 
 window.addEventListener('firebase-ready', async function() {
+  loadTheme();
   document.getElementById('connectingOverlay').classList.add('hidden');
   document.getElementById('loginOverlay').classList.add('hidden');
   document.getElementById('appWrap').style.display = 'block';
@@ -918,23 +919,10 @@ window.addEventListener('firebase-ready', async function() {
     if (avatarEl && u.photo) { avatarEl.src = u.photo; avatarEl.style.display = 'block'; }
   }
 
-  // Čekaj da Firebase modul postavi window._fs* funkcije
-  function waitAndLoad(attempts) {
-    if (window._fsGetTimClanovi && window._fsGetUnosi) {
-      loadFromFirebase().then(function() {
-        startUnosiListener(currentYear);
-        renderAll();
-      });
-    } else if (attempts > 0) {
-      setTimeout(function(){ waitAndLoad(attempts-1); }, 100);
-    } else {
-      loadFromFirebase().then(function() {
-        startUnosiListener(currentYear);
-        renderAll();
-      });
-    }
-  }
-  waitAndLoad(20);
+  loadFromFirebase().then(function() {
+    startUnosiListener(currentYear);
+    renderAll();
+  });
 });
 
 window.addEventListener('auth-needed', function() {
@@ -1524,8 +1512,10 @@ function bulkAddZap() {
 function saveZaposlenici() {
   data.zaposlenici = tempZap.filter(function(z){return z.ime.trim();});
   saveData();
-  if (window._fbReady) {
-    window._fsSaveZaposlenici(data.zaposlenici).catch(function(e){ console.error(e); });
+  if (window._fbReady && window._fsSaveTimClanovi) {
+    // Spremi u zajedničku tim_config kolekciju
+    window._fsSaveTimClanovi(data.zaposlenici.map(function(z){ return { ime: z.ime }; }))
+      .catch(function(e){ console.error(e); });
   }
   renderUserSelect();
   renderCalendar();
