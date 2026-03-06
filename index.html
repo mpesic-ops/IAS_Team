@@ -19,7 +19,7 @@
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -580,6 +580,126 @@ document.addEventListener('click', function(e) {
     e.target.classList.remove('open');
   }
 });
+
+
+// ══════════════════════════════════════════════════════
+// KORISNICI — PRISTUP
+// ══════════════════════════════════════════════════════
+function switchKorisTab(t) {
+  ['google','native'].forEach(function(n) {
+    document.getElementById('koris-tab-'+n).style.display = n===t?'block':'none';
+    var btn = document.getElementById('ktab-'+n);
+    if (btn) btn.classList.toggle('active', n===t);
+  });
+  if (t==='native') renderNativeUserList();
+}
+
+async function renderUserList() {
+  var list = document.getElementById('userAccessList');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:6px;font-size:11px;color:#6b7280;">Učitavanje...</div>';
+  try {
+    var users = await window._fsGetUsers();
+    list.innerHTML = '';
+    if (!users.length) { list.innerHTML='<div style="padding:6px;font-size:11px;color:#6b7280;">Nema korisnika.</div>'; return; }
+    users.sort(function(a,b){return a.email.localeCompare(b.email);}).forEach(function(u) {
+      var row = document.createElement('div');
+      row.className = 'item-row';
+      row.style.cssText = 'justify-content:space-between;flex-wrap:wrap;gap:4px;';
+
+      var emailSpan = document.createElement('span');
+      emailSpan.style.cssText = 'font-size:12px;color:#111827;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      emailSpan.textContent = u.email;
+
+      var nameInp = document.createElement('input');
+      nameInp.type = 'text'; nameInp.value = u.name || '';
+      nameInp.placeholder = 'Ime/nadimak';
+      nameInp.style.cssText = 'font-size:11px;border:1px solid #e5e7eb;border-radius:4px;padding:2px 6px;width:90px;';
+      nameInp.onchange = (function(id, inp){ return function(){ if(window._fsSetUserName) window._fsSetUserName(id, inp.value); }; })(u.id, nameInp);
+
+      var adminLbl = document.createElement('label');
+      adminLbl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap;';
+      var adminChk = document.createElement('input');
+      adminChk.type='checkbox'; adminChk.checked=u.admin;
+      adminChk.onchange=(function(id,chk){return function(){if(window._fsSetAdmin) window._fsSetAdmin(id,chk.checked);};})(u.id,adminChk);
+      adminLbl.appendChild(adminChk);
+      adminLbl.appendChild(document.createTextNode(' Admin'));
+
+      var delBtn = document.createElement('button');
+      delBtn.className='btn btn-secondary';
+      delBtn.style.cssText='padding:2px 8px;font-size:11px;';
+      delBtn.textContent='✕';
+      delBtn.onclick=(function(id){return function(){if(confirm('Ukloniti korisnika?'))window._fsRemoveUser(id).then(renderUserList);};})(u.id);
+
+      var left = document.createElement('div');
+      left.style.cssText='display:flex;align-items:center;gap:6px;flex:1;min-width:0;flex-wrap:wrap;';
+      left.appendChild(emailSpan); left.appendChild(nameInp); left.appendChild(adminLbl);
+      row.appendChild(left); row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+  } catch(e) { list.innerHTML='<div style="color:#dc2626;font-size:11px;padding:6px;">Greška: '+e.message+'</div>'; }
+}
+
+async function addUserAccess() {
+  var ta = document.getElementById('newUserEmails');
+  var isAdmin = document.getElementById('newUserAdmin').checked;
+  var msg = document.getElementById('userAccessMsg');
+  var emails = ta.value.split(/[
+,;]+/).map(function(e){return e.trim().toLowerCase();}).filter(function(e){return e.includes('@');});
+  if (!emails.length) { msg.textContent='⚠️ Unesite barem jedan email.'; return; }
+  msg.textContent='Dodavanje...'; var added=0, exists=0, errors=0;
+  for (var i=0;i<emails.length;i++) {
+    try { await window._fsAddUser(emails[i], isAdmin); added++; }
+    catch(e){ if(e.message.includes('već postoji')) exists++; else errors++; }
+  }
+  ta.value='';
+  msg.textContent = '✓ Dodano: '+added+(exists?' • Već postoji: '+exists:'')+(errors?' • Greške: '+errors:'');
+  await renderUserList();
+}
+
+function toggleNativePwd() {
+  var inp = document.getElementById('nativePassword');
+  var btn = document.getElementById('nativePwdToggle');
+  if (!inp) return;
+  inp.type = inp.type==='password'?'text':'password';
+  if (btn) btn.textContent = inp.type==='password'?'👁':'🙈';
+}
+
+async function addNativeUser() {
+  var email = document.getElementById('nativeEmail').value.trim().toLowerCase();
+  var pwd = document.getElementById('nativePassword').value;
+  var isAdmin = document.getElementById('nativeAdmin').checked;
+  var msg = document.getElementById('nativeMsg');
+  if (!email||!email.includes('@')){msg.style.color='#dc2626';msg.textContent='⚠️ Valjani email.';return;}
+  if (pwd.length<6){msg.style.color='#dc2626';msg.textContent='⚠️ Lozinka min. 6 znakova.';return;}
+  msg.textContent='Kreiranje...';msg.style.color='#6b7280';
+  try {
+    await window._fbCreateUser(email,pwd);
+    await window._fsAddUser(email,isAdmin,true);
+    document.getElementById('nativeEmail').value='';
+    document.getElementById('nativePassword').value='';
+    document.getElementById('nativeAdmin').checked=false;
+    msg.style.color='#16a34a';msg.textContent='✓ Korisnik kreiran.';
+    await renderUserList();
+  } catch(e){
+    var err=e.code==='auth/email-already-in-use'?'Email već postoji.':e.code==='auth/weak-password'?'Lozinka je preslaba.':e.message||'Greška.';
+    msg.style.color='#dc2626';msg.textContent='⚠️ '+err;
+  }
+}
+
+async function sendReset() {
+  var email = document.getElementById('resetEmail').value.trim().toLowerCase();
+  var msg = document.getElementById('resetMsg');
+  if (!email){msg.style.color='#dc2626';msg.textContent='⚠️ Unesite email.';return;}
+  msg.textContent='Slanje...';msg.style.color='#6b7280';
+  try {
+    await window._fbResetPassword(email);
+    document.getElementById('resetEmail').value='';
+    msg.style.color='#16a34a';msg.textContent='✓ Reset poslan na '+email;
+  } catch(e){
+    msg.style.color='#dc2626';msg.textContent='⚠️ '+(e.code==='auth/user-not-found'?'Email nije pronađen.':e.message||'Greška.');
+  }
+}
 
 // ══════════════════════════════════════════════════════
 // POSTAVKE TAB SWITCH
