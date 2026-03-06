@@ -861,42 +861,6 @@ async function syncUnosi(year) {
   } catch(e) { console.error('Sync unosi error:', e); }
 }
 
-// Učitaj postavke (godine, praznici) iz Firestore
-async function syncPostavke() {
-  if (!window._fsGetPostavke) return;
-  try {
-    var p = await window._fsGetPostavke();
-    if (p) {
-      if (p.godine) data.godine = p.godine;
-      if (p.praznici) data.praznici = p.praznici;
-      saveData();
-      renderYearTabs();
-    }
-  } catch(e) { console.error('Sync postavke error:', e); }
-}
-
-// Override saveData da i sprema u Firestore
-var _origSaveData = saveData;
-saveData = function() {
-  _origSaveData();
-  if (fbReady && window._fsSavePostavke) {
-    window._fsSavePostavke({ godine: data.godine, praznici: data.praznici || {} })
-      .catch(function(e) { console.error('Save postavke error:', e); });
-  }
-};
-
-// Override setUnos da sprema u Firestore
-var _origSetUnos = setUnos;
-setUnos = function(year, zapIdx, datum, vrsta) {
-  _origSetUnos(year, zapIdx, datum, vrsta);
-  // Spremi u Firestore koristeći zaposlenik ID
-  if (fbReady && window._fsSaveUnos && data.zaposlenici[zapIdx]) {
-    var zapId = data.zaposlenici[zapIdx].id || zapIdx;
-    window._fsSaveUnos(year, zapId, datum, vrsta)
-      .catch(function(e) { console.error('Save unos error:', e); });
-  }
-};
-
 // Auth eventi
 window.addEventListener('auth-needed', function() {
   document.getElementById('connectingOverlay').classList.add('hidden');
