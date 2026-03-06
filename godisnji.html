@@ -674,15 +674,15 @@ var MONTHS = ['Sij','Velj','Ožu','Tra','Svi','Lip','Srp','Kol','Ruj','Lis','Stu
 var MONTHS_FULL = ['Siječanj','Veljača','Ožujak','Travanj','Svibanj','Lipanj','Srpanj','Kolovoz','Rujan','Listopad','Studeni','Prosinac'];
 var DAYS_S = ['Ne','Po','Ut','Sr','Če','Pe','Su'];
 var DAYS_FULL = ['Nedjelja','Ponedjeljak','Utorak','Srijeda','Četvrtak','Petak','Subota'];
-var DAYS = DAYS_FULL;
+var DAYS = ['Ned','Pon','Uto','Sri','Čet','Pet','Sub'];
 
 // ── Tipovi odsutnosti ─────────────────────────────────────────
 var VRSTE = {
-  'GO':  { label: 'GO',  emoji: '🏖️',  full: 'Godišnji odmor' },
-  'SD':  { label: 'SD',  emoji: '🤒',  full: 'Bolovanje' },
-  'SDE': { label: 'SDE', emoji: '👶',  full: 'Roditeljski dopust' },
-  'DK':  { label: 'DK',  emoji: '📋',  full: 'Državni praznik' },
-  'BO':  { label: 'BO',  emoji: '🏠',  full: 'Rad od kuće' },
+  'GO':  { label: 'Godišnji odmor',  emoji: '🏖️',  full: 'Godišnji odmor' },
+  'SD':  { label: 'Slobodan dan',    emoji: '☀️',   full: 'Slobodan dan' },
+  'SDE': { label: 'Edukacija',       emoji: '📚',   full: 'Edukacija' },
+  'DK':  { label: 'Darivanje krvi',  emoji: '🩸',   full: 'Darivanje krvi' },
+  'BO':  { label: 'Bolovanje',       emoji: '🤒',   full: 'Bolovanje' },
 };
 
 // ── Drag select state ─────────────────────────────────────────
@@ -690,9 +690,9 @@ var dragState = { active: false, zapIdx: null, cells: [] };
 
 // ── Unosi helpers ─────────────────────────────────────────────
 function getUnos(godina, zapIdx, ds) {
-  if (!data.unosi[godina]) return null;
-  if (!data.unosi[godina][zapIdx]) return null;
-  return data.unosi[godina][zapIdx][ds] || null;
+  var unGod = data.unosi[godina] || {};
+  var u = unGod[zapIdx] || unGod[String(zapIdx)] || {};
+  return u[ds] || null;
 }
 
 function setUnos(godina, zapIdx, ds, vrsta) {
@@ -714,11 +714,18 @@ function setUnos(godina, zapIdx, ds, vrsta) {
 }
 
 function countDana(zapIdx, vrsta, godina) {
-  if (!data.unosi[godina] || !data.unosi[godina][zapIdx]) return 0;
-  return Object.values(data.unosi[godina][zapIdx]).filter(function(v){ return v === vrsta; }).length;
+  var unGod = data.unosi[godina] || {};
+  var u = unGod[zapIdx] || unGod[String(zapIdx)] || {};
+  return Object.values(u).filter(function(v){ return v === vrsta; }).length;
 }
 
 // ── Drag select handlers ──────────────────────────────────────
+function countDanaDo(zapIdx, vrsta, godina, doDs) {
+  var unGod = data.unosi[godina] || {};
+  var u = unGod[zapIdx] || unGod[String(zapIdx)] || {};
+  return Object.keys(u).filter(function(ds){ return u[ds]===vrsta && ds<=doDs; }).length;
+}
+
 function initDragSelect() {
   document.addEventListener('mouseup', function() {
     if (dragState.active && dragState.cells.length > 1) {
@@ -858,9 +865,7 @@ async function syncZaposlenici() {
         return { ime: ime, goDana: c.goDana || (existing && existing.goDana) || 30 };
       });
       saveData();
-      renderUserSelect();
-      renderCalendar();
-      renderStats();
+      renderAll();
         }
   } catch(e) { console.error('Sync zaposlenici error:', e); }
 }
@@ -1031,6 +1036,7 @@ function renderAll() {
   renderUserSelect();
   renderMonthTabs();
   renderCalendar();
+  renderWeek();
   renderStats();
   if (window.innerWidth <= 640) {
     showTab('calendar');
@@ -1249,15 +1255,28 @@ function renderCalendar() {
         chip.textContent = vrsta ? VRSTE[vrsta].label : '+';
         if (!isWknd) {
           (function(zapIdx, datum, v, chipEl) {
+            var dragWasActive = false;
+            chip.addEventListener('mousedown', function(e){
+              e.preventDefault();
+              dragWasActive = false;
+              onCellMouseDown(zapIdx, datum, chipEl, v);
+            });
+            chip.addEventListener('mouseenter', function(){
+              onCellMouseEnter(zapIdx, datum, chipEl, v);
+            });
+            chip.addEventListener('touchstart', function(e){
+              e.preventDefault();
+              dragWasActive = false;
+              onCellMouseDown(zapIdx, datum, chipEl, v);
+            });
+            chip.addEventListener('mouseup', function(){
+              dragWasActive = dragState.cells && dragState.cells.length > 1;
+            });
             chip.onclick = function() {
-              if (dragState.cells && dragState.cells.length > 1) return; // Završio drag
+              if (dragWasActive) { dragWasActive = false; return; }
+              if (dragState.cells && dragState.cells.length > 1) return;
               onCellClick(zapIdx, datum, v);
             };
-            if (!v) {
-              chip.addEventListener('mousedown', function(e){ e.preventDefault(); onCellMouseDown(zapIdx, datum, chipEl, v); });
-              chip.addEventListener('mouseenter', function(){ onCellMouseEnter(zapIdx, datum, chipEl, v); });
-              chip.addEventListener('touchstart', function(e){ e.preventDefault(); onCellMouseDown(zapIdx, datum, chipEl, v); },{passive:false});
-            }
           })(zi, ds2, vrsta, chip);
         }
       }
@@ -1350,9 +1369,8 @@ function confirmBrisi() {
 function getWeekStart(offset) {
   var today = new Date();
   var day = today.getDay();
-  var diff = today.getDate() - day + (day===0 ? -6 : 1) + offset*7;
-  var mon = new Date(today.setDate(diff));
-  mon.setHours(0,0,0,0);
+  var diff = (day === 0 ? -6 : 1 - day);
+  var mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diff + (offset||0)*7);
   return mon;
 }
 
@@ -1652,6 +1670,8 @@ function renderStats() {
     var goTotal = z.goDana || 0;
     var goUsed  = countDana(zi, 'GO', currentYear);
     var goLeft  = goTotal - goUsed;
+    var may31   = currentYear + '-05-31';
+    var goUsedMay = countDanaDo(zi, 'GO', currentYear, may31);
     var sd  = countDana(zi, 'SD',  currentYear);
     var sde = countDana(zi, 'SDE', currentYear);
     var dk  = countDana(zi, 'DK',  currentYear);
@@ -1667,7 +1687,8 @@ function renderStats() {
     if (onLeave) {
       var badge = document.createElement('span');
       badge.style.cssText = 'font-size:10px;background:var(--go-bg);border:1px solid var(--go-border);color:var(--go-text);padding:1px 5px;border-radius:8px;margin-left:5px;';
-      badge.textContent = VRSTE[onLeave].emoji + ' ' + VRSTE[onLeave].label;
+      var v = VRSTE[onLeave] || {emoji:'📅', label:onLeave};
+      badge.textContent = v.emoji + ' ' + v.label;
       tdIme.appendChild(badge);
     }
     tr.appendChild(tdIme);
