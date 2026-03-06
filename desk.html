@@ -51,7 +51,7 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -1717,7 +1717,17 @@ function init(){
       document.getElementById('userName').textContent=window._fbUser.name||window._fbUser.email;
       if(window._fbUser.photo){const av=document.getElementById('userAvatar');av.src=window._fbUser.photo;av.style.display='block';}
     }
-    initFB();
+    // Čekaj da Firebase modul postavi window._fs* funkcije
+    function waitAndInitFB(attempts) {
+      if (window._fsGetTimClanovi && window._fsGetDeskNames) {
+        initFB();
+      } else if (attempts > 0) {
+        setTimeout(function(){ waitAndInitFB(attempts-1); }, 100);
+      } else {
+        initFB(); // pokušaj i bez Firestore funkcija
+      }
+    }
+    waitAndInitFB(20);
   });
 
   // Ako Firebase nije ni krenuo (greška konfiguracije)
