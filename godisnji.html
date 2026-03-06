@@ -120,12 +120,12 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 
 /* CALENDAR TABLE */
 .cal-wrap { overflow-x:auto;padding:12px; }
-.cal-table { border-collapse:collapse;min-width:100%;background:var(--card-bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 6px var(--card-shadow); }
+.cal-table { border-collapse:collapse;min-width:100%;background:var(--card-bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 6px var(--card-shadow); table-layout:fixed;}
 .cal-table th { background:var(--table-header);color:white;padding:6px 4px;font-size:10px;font-weight:600;text-align:center;min-width:32px;white-space:nowrap; }
 .cal-table th.emp-header { background:var(--table-label-bg);color:var(--table-label-color);min-width:140px;text-align:left;padding-left:10px;font-size:11px;border-right:2px solid var(--table-label-border); }
 .cal-table th.weekend { background:#64748b;opacity:.7; }
 .cal-table th.today-col { background:#f59e0b !important; }
-.cal-table td { border:1px solid var(--table-cell-border);padding:2px;text-align:center;height:30px;background:var(--table-cell-bg); }
+.cal-table td { border:1px solid var(--table-cell-border);padding:2px;text-align:center;height:30px;width:28px;min-width:28px;max-width:28px;background:var(--table-cell-bg); }
 .cal-table td.emp-name { background:var(--table-label-bg);color:var(--table-label-color);font-weight:600;font-size:11px;text-align:left;padding-left:10px;border-right:2px solid var(--table-label-border);white-space:nowrap; }
 .cal-table td.weekend-cell { background:var(--bg3);opacity:.6; }
 .cal-table td.praznik-cell { background:#fdf2f8; }
@@ -678,11 +678,11 @@ var DAYS = ['Ned','Pon','Uto','Sri','Čet','Pet','Sub'];
 
 // ── Tipovi odsutnosti ─────────────────────────────────────────
 var VRSTE = {
-  'GO':  { label: 'Godišnji odmor',  emoji: '🏖️',  full: 'Godišnji odmor' },
-  'SD':  { label: 'Slobodan dan',    emoji: '☀️',   full: 'Slobodan dan' },
-  'SDE': { label: 'Edukacija',       emoji: '📚',   full: 'Edukacija' },
-  'DK':  { label: 'Darivanje krvi',  emoji: '🩸',   full: 'Darivanje krvi' },
-  'BO':  { label: 'Bolovanje',       emoji: '🤒',   full: 'Bolovanje' },
+  'GO':  { label: 'GO',  emoji: '🏖️',  full: 'Godišnji odmor' },
+  'SD':  { label: 'SD',  emoji: '☀️',   full: 'Slobodan dan' },
+  'SDE': { label: 'SDE', emoji: '📚',   full: 'Edukacija' },
+  'DK':  { label: 'DK',  emoji: '🩸',   full: 'Darivanje krvi' },
+  'BO':  { label: 'BO',  emoji: '🤒',   full: 'Bolovanje' },
 };
 
 // ── Drag select state ─────────────────────────────────────────
@@ -731,6 +731,8 @@ function initDragSelect() {
     if (dragState.active && dragState.cells.length > 1) {
       var zapIdx = dragState.zapIdx;
       var sortedCells = dragState.cells.slice().sort();
+      _dragJustFired = true;
+      setTimeout(function(){ _dragJustFired = false; }, 300);
       document.getElementById('currentUser').value = zapIdx;
       pendingCell = { zapIdx: zapIdx, datum: sortedCells[0] };
       var od = sortedCells[0];
@@ -1273,8 +1275,7 @@ function renderCalendar() {
               dragWasActive = dragState.cells && dragState.cells.length > 1;
             });
             chip.onclick = function() {
-              if (dragWasActive) { dragWasActive = false; return; }
-              if (dragState.cells && dragState.cells.length > 1) return;
+              if (_dragJustFired || dragWasActive) { dragWasActive = false; return; }
               onCellClick(zapIdx, datum, v);
             };
           })(zi, ds2, vrsta, chip);
@@ -1349,8 +1350,8 @@ function saveUnos() {
   }
   closeModal('unos');
   renderCalendar();
-  renderWeek();
   renderStats();
+  renderDanas();
 }
 
 function confirmBrisi() {
@@ -1582,7 +1583,7 @@ function renderFun() {
     hasAny = true;
     var br0 = brRank[0];
     var brTitles = br0.val>=4?'Pravi strateg slobodnih dana 🧠':br0.val>=2?'Zna iskoristiti kalendar 😏':'Otkrio tajnu dugih vikenda';
-    wrap.appendChild(awardCard('🌉','Grand master bridgea', br0.name,
+    wrap.appendChild(awardCard('🌉','Grand master spajanja', br0.name,
       br0.val+'× spojio GO uz vikend ili praznik — '+brTitles, brRank, '#f59e0b'));
   }
 
@@ -1703,7 +1704,7 @@ function renderStats() {
     var tdUsed = document.createElement('td');
     tdUsed.style.cssText = 'text-align:center;white-space:nowrap;';
     var spanNum = document.createElement('span');
-    spanNum.textContent = goUsed + (goUsedMay < goUsed ? ' ('+goUsedMay+' do 31.5.)' : '');
+    spanNum.textContent = goUsedMay < goUsed ? goUsed + ' (' + goUsedMay + ')' : String(goUsed);
     var bar = document.createElement('span');
     bar.style.cssText = 'height:10px;border-radius:5px;background:var(--go-bg);border:1px solid var(--go-border);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:6px;';
     var fill = document.createElement('span');
