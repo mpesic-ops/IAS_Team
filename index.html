@@ -859,7 +859,7 @@ function renderTimClanovi() {
   list.appendChild(saveRow);
 }
 
-function addTimClan() {
+async function addTimClan() {
   var inp = document.getElementById('newTimClanInput');
   var ime = inp.value.trim();
   if (!ime) return;
@@ -1082,6 +1082,7 @@ async function hubSaveYear(){
 // AUTH EVENT HANDLERI
 // ══════════════════════════════════════════════════════
 function onFirebaseReady() {
+  loadTheme();
   document.getElementById('connectingOverlay').classList.add('hidden');
   document.getElementById('loginOverlay').classList.add('hidden');
   document.getElementById('appWrap').style.display = 'block';
@@ -1176,7 +1177,7 @@ if (window._fbReady && window._fbUser) {
       const snap = await _fsdb.collection('allowed_users').get();
       const found = snap.docs.find(d => (d.data().email||'').toLowerCase() === email.toLowerCase());
       if (!found) return { allowed: false, admin: false };
-      return { allowed: true, admin: found.data().admin === true };
+      return { allowed: true, admin: found.data().admin === true || found.data().Admin === true };
     } catch(e) { return { allowed: false, admin: false }; }
   }
 
