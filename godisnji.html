@@ -358,7 +358,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA (isti kao Shared Desk):
-  const firebaseConfig = {
+  c  const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -889,6 +889,45 @@ window.addEventListener('auth-denied', function(e) {
   document.getElementById('loginOverlay').classList.add('hidden');
 });
 
+
+// ════════════════════════════════════════════════════════════════
+// FIREBASE LOAD
+// ════════════════════════════════════════════════════════════════
+async function loadFromFirebase() {
+  try {
+    // 1. Zaposlenici iz zajedničke tim_config kolekcije
+    if (window._fsGetTimClanovi) {
+      var clanovi = await window._fsGetTimClanovi();
+      if (clanovi && clanovi.length > 0) {
+        data.zaposlenici = clanovi.map(function(c) {
+          var ime = c.ime || c.name || '';
+          var existing = data.zaposlenici.find(function(z){ return z.ime === ime; });
+          return { ime: ime, goDana: (existing && existing.goDana) || c.goDana || 20 };
+        });
+      }
+    }
+    // 2. Godine
+    if (window._fsGetGodine) {
+      var god = await window._fsGetGodine();
+      if (god && god.length) data.godine = god;
+    }
+    // 3. Praznici
+    if (window._fsGetPraznici) {
+      var praz = await window._fsGetPraznici();
+      if (praz) { data.praznici = praz; _prazniciCache = {}; }
+    }
+    // 4. Unosi za sve godine
+    if (window._fsGetUnosi) {
+      for (var i = 0; i < data.godine.length; i++) {
+        var g = data.godine[i].godina;
+        var unosi = await window._fsGetUnosi(g);
+        data.unosi[g] = unosi || {};
+      }
+    }
+    saveData();
+  } catch(e) { console.error('loadFromFirebase error:', e); }
+}
+
 window.addEventListener('firebase-ready', async function() {
   document.getElementById('connectingOverlay').classList.add('hidden');
   document.getElementById('loginOverlay').classList.add('hidden');
@@ -902,9 +941,23 @@ window.addEventListener('firebase-ready', async function() {
     if (avatarEl && u.photo) { avatarEl.src = u.photo; avatarEl.style.display = 'block'; }
   }
 
-  await loadFromFirebase();
-  startUnosiListener(currentYear);
-  renderAll();
+  // Čekaj da Firebase modul postavi window._fs* funkcije
+  function waitAndLoad(attempts) {
+    if (window._fsGetTimClanovi && window._fsGetUnosi) {
+      loadFromFirebase().then(function() {
+        startUnosiListener(currentYear);
+        renderAll();
+      });
+    } else if (attempts > 0) {
+      setTimeout(function(){ waitAndLoad(attempts-1); }, 100);
+    } else {
+      loadFromFirebase().then(function() {
+        startUnosiListener(currentYear);
+        renderAll();
+      });
+    }
+  }
+  waitAndLoad(20);
 });
 
 window.addEventListener('auth-needed', function() {
