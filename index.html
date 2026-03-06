@@ -232,15 +232,16 @@ body { min-height:100vh;background:#f0f2f5; }
 .hub-greeting-sub { font-size:13px;color:#6b7280;margin-bottom:28px; }
 
 .hub-apps { display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:28px; }
-.hub-app-card { background:white;border-radius:16px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.08);border:2px solid transparent;cursor:pointer;transition:all .2s;text-decoration:none;display:block; }
+.hub-app-card-wrap { background:var(--hub-card-bg,white);border:1px solid var(--hub-card-border,#e5e7eb);border-radius:12px;box-shadow:0 2px 8px var(--hub-card-shadow,rgba(0,0,0,.08));overflow:hidden; }
+.hub-app-card { background:var(--hub-card-bg,white);border-radius:16px;padding:24px;box-shadow:0 2px 10px var(--hub-card-shadow,rgba(0,0,0,.08));border:2px solid transparent;cursor:pointer;transition:all .2s;text-decoration:none;display:block; }
 .hub-app-card:hover { border-color:#1a56a0;box-shadow:0 6px 20px rgba(26,86,160,.15);transform:translateY(-2px); }
 .hub-app-icon { font-size:42px;margin-bottom:12px; }
 .hub-app-name { font-size:17px;font-weight:800;color:#111827;margin-bottom:4px; }
 .hub-app-desc { font-size:12px;color:#6b7280;line-height:1.5; }
 .hub-app-badge { display:inline-block;margin-top:10px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:#dbeafe;color:#1e40af; }
 
-.hub-postavke { background:white;border-radius:16px;padding:20px 24px;box-shadow:0 2px 10px rgba(0,0,0,.08); }
-.hub-postavke h3 { font-size:14px;font-weight:700;color:#374151;margin-bottom:14px;display:flex;align-items:center;gap:6px; }
+.hub-postavke { background:var(--hub-card-bg,white);border-radius:16px;padding:20px 24px;box-shadow:0 2px 10px rgba(0,0,0,.08); }
+.hub-postavke h3 { font-size:14px;font-weight:700;color:var(--hub-body-text,#374151);margin-bottom:14px;display:flex;align-items:center;gap:6px; }
 .hub-postavke-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px; }
 .hub-postavke-btn { display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e5e7eb;border-radius:10px;background:white;cursor:pointer;transition:all .15s;text-align:left; }
 .hub-postavke-btn:hover { border-color:#1a56a0;background:#f0f7ff; }
@@ -252,7 +253,7 @@ body { min-height:100vh;background:#f0f2f5; }
 .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:12px; }
 .modal-overlay.open { display:flex; }
 #modal-deleteyear,.modal-overlay#modal-brisi { z-index:400; }
-.modal { background:white;border-radius:12px;padding:20px;width:100%;max-width:480px;box-shadow:0 8px 30px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto; }
+.modal { background:var(--hub-modal-bg,white);border-radius:12px;padding:20px;width:100%;max-width:480px;box-shadow:0 8px 30px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;color:var(--hub-body-text,#111827); }
 .modal h2 { font-size:15px;font-weight:bold;margin-bottom:14px; }
 .modal-footer { display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:10px;border-top:1px solid #e5e7eb; }
 .btn { padding:7px 14px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer; }
@@ -261,8 +262,8 @@ body { min-height:100vh;background:#f0f2f5; }
 .form-row { margin-bottom:10px; }
 .form-row label { display:block;font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px; }
 .form-row input,.form-row select,.form-row textarea { width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px; }
-.items-list { display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;margin-bottom:6px; }
-.item-row { display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f9fafb;border-radius:5px;border:1px solid #e5e7eb; }
+.items-list { display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;border:1px solid var(--hub-card-border,#e5e7eb);border-radius:6px;margin-bottom:6px; }
+.item-row { display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--hub-item-row-bg,#f9fafb);border-radius:5px;border:1px solid #e5e7eb; }
 .item-row input[type=text],.item-row input[type=email] { flex:1;border:none;background:transparent;font-size:12px;color:#111827;outline:none; }
 .tabs-inner { display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:12px; }
 .tab-inner-btn { padding:7px 14px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px; }
