@@ -46,12 +46,12 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   import { getDatabase, ref, set, onValue }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail }
                                                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where }
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, updateDoc, query, where, setDoc, getDoc, onSnapshot }
                                                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -124,6 +124,34 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
   // Ažuriraj admin status
   window._fsSetAdmin = async (docId, isAdmin) => {
     await updateDoc(doc(fsdb, 'allowed_users', docId), { admin: isAdmin });
+  };
+
+  // ── Tim zaposlenici (zajednička lista s Godišnjim) ────────────
+  window._fsGetTimClanovi = async () => {
+    const d = await getDoc(doc(fsdb, 'tim_config', 'zaposlenici'));
+    return d.exists() ? (d.data().lista || []) : [];
+  };
+
+  // ── Desk/Park nazivi ──────────────────────────────────────────
+  window._fsGetDeskNames = async () => {
+    const d = await getDoc(doc(fsdb, 'desk_config', 'stolovi'));
+    return d.exists() ? (d.data().names || []) : null;
+  };
+  window._fsSaveDeskNames = async (names) => {
+    await setDoc(doc(fsdb, 'desk_config', 'stolovi'), { names });
+  };
+  window._fsGetParkNames = async () => {
+    const d = await getDoc(doc(fsdb, 'desk_config', 'parking'));
+    return d.exists() ? (d.data().names || []) : null;
+  };
+  window._fsSaveParkNames = async (names) => {
+    await setDoc(doc(fsdb, 'desk_config', 'parking'), { names });
+  };
+
+  // ── Praznici ─────────────────────────────────────────────────
+  window._fsGetPraznici = async () => {
+    const d = await getDoc(doc(fsdb, 'godisnji_config', 'praznici'));
+    return d.exists() ? (d.data().overrides || {}) : {};
   };
 
   onAuthStateChanged(auth, async user => {
@@ -735,10 +763,11 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <div id="syncStatus" class="synced">✓ Sinkronizirano</div>
 
 <div class="top-bar">
+  <div style="display:flex;align-items:center;gap:6px;">
+    <a href="index.html" style="padding:0 10px;border-radius:4px;border:1px solid var(--topbar-btn-border);background:var(--topbar-btn-bg);color:var(--topbar-btn-color);font-size:11px;font-weight:bold;height:28px;display:inline-flex;align-items:center;text-decoration:none;">🏠 Hub</a>
+    <a href="godisnji.html" style="padding:0 10px;border-radius:4px;border:1px solid var(--topbar-btn-border);background:var(--topbar-btn-bg);color:var(--topbar-btn-color);font-size:11px;font-weight:bold;height:28px;display:inline-flex;align-items:center;text-decoration:none;">🏖️ Godišnji odmori</a>
+  </div>
   <h1>📋 IAS Shared Desk</h1>
-  <a href="index.html" style="padding:0 10px;border-radius:4px;border:1px solid var(--topbar-btn-border);background:var(--topbar-btn-bg);color:var(--topbar-btn-color);font-size:11px;font-weight:bold;height:28px;display:inline-flex;align-items:center;text-decoration:none;">🏠 Hub</a>
-  <a href="godisnji.html" style="padding:0 10px;border-radius:4px;border:1px solid var(--topbar-btn-border);background:var(--topbar-btn-bg);color:var(--topbar-btn-color);font-size:11px;font-weight:bold;height:28px;display:inline-flex;align-items:center;text-decoration:none;">🏖️ Godišnji</a>
-  <button onclick="openModal('postavke')">⚙️ Postavke</button>
   <div class="user-info">
     <img class="user-avatar" id="userAvatar" src="" alt="" style="display:none;">
     <span class="user-name" id="userName"></span>
@@ -1156,9 +1185,21 @@ function setSS(s,m){const e=document.getElementById('syncStatus');e.className=s;
 function initFB(){
   window._fbListen('reservations/desk',v=>{if(_ign.desk){_ign.desk=false;return;}deskData=v||{};sRD();updateFloor();updateCards();});
   window._fbListen('reservations/park',v=>{if(_ign.park){_ign.park=false;return;}parkData=v||{};sRP();updateFloor();updateCards();});
-  window._fbListen('config/deskNames',v=>{if(_ign.deskNames){_ign.deskNames=false;return;}if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}});
-  window._fbListen('config/parkNames',v=>{if(_ign.parkNames){_ign.parkNames=false;return;}if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}});
-  window._fbListen('config/people',v=>{if(_ign.people){_ign.people=false;return;}if(v&&Array.isArray(v)){people=v;sRD();sRP();}});
+  // Stolovi i parking — čitaj iz Firestore desk_config, fallback na Realtime DB
+  if(window._fsGetDeskNames){
+    window._fsGetDeskNames().then(function(names){if(names&&names.length){deskNames=names;sRD();updateFloor();}else{window._fbListen('config/deskNames',v=>{if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}});}});
+  } else { window._fbListen('config/deskNames',v=>{if(_ign.deskNames){_ign.deskNames=false;return;}if(v&&Array.isArray(v)){deskNames=v;sRD();updateFloor();}}); }
+  if(window._fsGetParkNames){
+    window._fsGetParkNames().then(function(names){if(names&&names.length){parkNames=names;sRP();updateFloor();}else{window._fbListen('config/parkNames',v=>{if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}});}});
+  } else { window._fbListen('config/parkNames',v=>{if(_ign.parkNames){_ign.parkNames=false;return;}if(v&&Array.isArray(v)){parkNames=v;sRP();updateFloor();}}); }
+  // Tim zaposlenici — čitaj iz zajedničke Firestore kolekcije
+  if(window._fsGetTimClanovi){
+    window._fsGetTimClanovi().then(function(clanovi){if(clanovi&&clanovi.length){people=clanovi.map(function(c){return c.ime||c.name||c;});sRD();sRP();}else{window._fbListen('config/people',v=>{if(v&&Array.isArray(v)){people=v;sRD();sRP();}});}});
+  } else { window._fbListen('config/people',v=>{if(_ign.people){_ign.people=false;return;}if(v&&Array.isArray(v)){people=v;sRD();sRP();}}); }
+  // Praznici — učitaj za blokiranje rezervacija
+  if(window._fsGetPraznici){
+    window._fsGetPraznici().then(function(overrides){window._sdPraznici=overrides||{};});
+  }
   fbReady=true;
   document.getElementById('connectingOverlay').classList.add('hidden');
   setSS('synced','✓ Sinkronizirano');
