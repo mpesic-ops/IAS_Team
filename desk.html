@@ -51,15 +51,15 @@ document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
-    apiKey: "ZAMIJENITE-OVO",
-    authDomain: "vas-projekt.firebaseapp.com",
-    databaseURL: "https://vas-projekt-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "vas-projekt",
-    storageBucket: "vas-projekt.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:abcdef1234567890"
-  };
+   const firebaseConfig = {
+  apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
+  authDomain: "ias-shared-desk.firebaseapp.com",
+  databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ias-shared-desk",
+  storageBucket: "ias-shared-desk.firebasestorage.app",
+  messagingSenderId: "752309546769",
+  appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
+};
   // ================================================================
 
   const app      = initializeApp(firebaseConfig);
@@ -668,7 +668,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
 <body>
 
 <!-- LOGIN EKRAN -->
-<div id="loginOverlay">
+<div id="loginOverlay" class="hidden">
   <div class="login-box">
     <div class="login-logo">📋</div>
     <h1>IAS Shared Desk</h1>
@@ -727,7 +727,7 @@ td.cell select.park-reserved { background:#d1fae5;color:#065f46;font-weight:600;
   </div>
 </div>
 
-<div id="connectingOverlay" class="hidden">
+<div id="connectingOverlay">
   <div class="spinner"></div>
   <p>Spajanje na bazu podataka...</p>
   <small>Ako ovo traje dulje od 15 sekundi, provjerite firebaseConfig u HTML datoteci.</small>
@@ -1655,8 +1655,8 @@ function init(){
 
   // Auth eventi
   window.addEventListener('auth-needed', ()=>{
-    document.getElementById('loginOverlay').classList.remove('hidden');
-    document.getElementById('connectingOverlay').classList.add('hidden');
+    // Nije prijavljen — vrati na hub za login
+    window.location.href = 'index.html';
   });
   window.addEventListener('auth-denied', e=>{
     document.getElementById('deniedEmail').textContent=e.detail;
