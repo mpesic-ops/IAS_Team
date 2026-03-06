@@ -531,6 +531,69 @@ body { min-height:100vh;background:#f0f2f5; }
 
 <script>
 // ══════════════════════════════════════════════════════
+// AUTH EVENT HANDLERI
+// ══════════════════════════════════════════════════════
+function onFirebaseReady() {
+  document.getElementById('connectingOverlay').classList.add('hidden');
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('appWrap').style.display = 'block';
+
+  var u = window._fbUser;
+  if (u) {
+    var firstName = u.name ? u.name.split(' ')[0] : u.email.split('@')[0];
+    document.getElementById('hubGreeting').textContent = 'Bok, ' + firstName + '! 👋';
+    document.getElementById('hubName').textContent = u.name || u.email;
+    if (u.photo) {
+      var av = document.getElementById('hubAvatar');
+      av.src = u.photo; av.style.display = 'block';
+    }
+  }
+
+  if (window._fbAdmin) {
+    document.getElementById('hub-admin-sekcija').style.display = 'block';
+    document.getElementById('hub-desk-admin').style.display = 'block';
+    document.getElementById('hub-god-admin').style.display = 'block';
+    document.getElementById('hub-desk-noadmin').style.display = 'none';
+    document.getElementById('hub-god-noadmin').style.display = 'none';
+    loadTimClanovi();
+  } else {
+    document.getElementById('hub-admin-sekcija').style.display = 'none';
+    document.getElementById('hub-desk-admin').style.display = 'none';
+    document.getElementById('hub-god-admin').style.display = 'none';
+    document.getElementById('hub-desk-noadmin').style.display = 'block';
+    document.getElementById('hub-god-noadmin').style.display = 'block';
+  }
+  loadTheme();
+}
+
+window.addEventListener('firebase-ready', onFirebaseReady);
+
+window.addEventListener('auth-needed', function() {
+  document.getElementById('connectingOverlay').classList.add('hidden');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+});
+
+window.addEventListener('auth-denied', function(e) {
+  document.getElementById('connectingOverlay').classList.add('hidden');
+  document.getElementById('deniedOverlay').classList.remove('hidden');
+  var el = document.getElementById('deniedEmail');
+  if (el) el.textContent = e.detail;
+});
+
+// Race condition fix — ako je Firebase već spreman prije nego što smo počeli slušati
+if (window._fbReady && window._fbUser) {
+  onFirebaseReady();
+} else if (window._fbReady === false && !window._fbUser) {
+  // Već je dobio auth-needed ali nismo slušali
+  setTimeout(function() {
+    if (document.getElementById('appWrap').style.display !== 'block') {
+      document.getElementById('connectingOverlay').classList.add('hidden');
+      document.getElementById('loginOverlay').classList.remove('hidden');
+    }
+  }, 3000);
+}
+
+// ══════════════════════════════════════════════════════
 // POSTAVKE TAB SWITCH
 // ══════════════════════════════════════════════════════
 function switchPostavkeTab(t) {
