@@ -123,7 +123,7 @@ body { background:var(--bg);color:var(--body-text);font-size:13px; }
 
 /* CALENDAR TABLE */
 .cal-wrap { overflow-x:auto;padding:12px; }
-.cal-table { border-collapse:collapse;min-width:100%;background:var(--card-bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 6px var(--card-shadow); table-layout:fixed;}
+.cal-table { border-collapse:collapse;min-width:100%;background:var(--card-bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 6px var(--card-shadow); table-layout:fixed;user-select:none;-webkit-user-select:none;}
 .cal-table th { background:var(--table-header);color:white;padding:6px 4px;font-size:10px;font-weight:600;text-align:center;min-width:32px;white-space:nowrap; }
 .cal-table th.emp-header { background:var(--table-label-bg);color:var(--table-label-color);min-width:140px;text-align:left;padding-left:10px;font-size:11px;border-right:2px solid var(--table-label-border); }
 .cal-table th.weekend { background:#64748b;opacity:.7; }
@@ -730,27 +730,18 @@ function countDanaDo(zapIdx, vrsta, godina, doDs) {
 }
 
 function initDragSelect() {
+  // Sprječava text selection pri drag-u
+  document.addEventListener('selectstart', function(e) {
+    if (dragState.active) e.preventDefault();
+  });
+  // Fallback mouseup na document - samo resetira ako chip mouseup nije okinuo
   document.addEventListener('mouseup', function() {
-    if (dragState.active && dragState.cells.length > 1) {
-      var zapIdx = dragState.zapIdx;
-      var sortedCells = dragState.cells.slice().sort();
-      window._dragJustFired = true;
-      setTimeout(function(){ window._dragJustFired = false; }, 300);
-      document.getElementById('currentUser').value = zapIdx;
-      pendingCell = { zapIdx: zapIdx, datum: sortedCells[0] };
-      var od = sortedCells[0];
-      var doDt = sortedCells[sortedCells.length-1];
-      var dp = od.split('-');
-      document.getElementById('unosTitle').textContent = '📝 ' + (data.zaposlenici[zapIdx] ? data.zaposlenici[zapIdx].ime : '') + ' — ' + dp[2]+'/'+dp[1]+'/'+dp[0] + (sortedCells.length > 1 ? ' (+' + (sortedCells.length-1) + ')' : '');
-      document.getElementById('unosDatumOd').value = dp[2]+'/'+dp[1]+'/'+dp[0];
-      document.getElementById('unosDatumDo').value = doDt;
-      document.getElementById('unosBrojDana').value = '';
-      openModal('unos');
+    if (dragState.active) {
+      dragState.active = false;
+      dragState.cells = [];
+      dragState.zapIdx = null;
+      document.querySelectorAll('.drag-selecting').forEach(function(el){ el.classList.remove('drag-selecting'); });
     }
-    dragState.active = false;
-    dragState.cells = [];
-    dragState.zapIdx = null;
-    document.querySelectorAll('.drag-selecting').forEach(function(el){ el.classList.remove('drag-selecting'); });
   });
 }
 function onCellMouseDown(zapIdx, datum, chipEl, vrsta) {
@@ -1084,13 +1075,17 @@ function renderAll() {
   renderCalendar();
   renderWeek();
   renderStats();
+  renderFun();
+}
+
+function initTabs() {
   if (window.innerWidth <= 640) {
     showTab('calendar');
   } else {
-    renderWeek();
     showTab('week');
   }
 }
+
 
 // ── Login funkcije ────────────────────────────────────────────────
 function toggleLoginPwd() {
@@ -1143,22 +1138,7 @@ async function loginWithEmail() {
   }
 }
 
-function init() {
-  loadData();
-  loadTheme();
-  initDragSelect();
-  renderYearTabs();
-  renderUserSelect();
-  renderMonthTabs();
-  renderStats();
-  // Na mobitelu defaultno otvori kalendar, na desktopu tjedan
-  if (window.innerWidth <= 640) {
-    showTab('calendar');
-  } else {
-    renderWeek();
-    showTab('week');
-  }
-}
+// init() definirana dolje
 
 // ════════════════════════════════════════════════════════════════
 // YEAR TABS
@@ -1301,10 +1281,8 @@ function renderCalendar() {
         chip.textContent = vrsta ? VRSTE[vrsta].label : '+';
         if (!isWknd) {
           (function(zapIdx, datum, v, chipEl) {
-            var dragWasActive = false;
             chip.addEventListener('mousedown', function(e){
               e.preventDefault();
-              dragWasActive = false;
               onCellMouseDown(zapIdx, datum, chipEl, v);
             });
             chip.addEventListener('mouseenter', function(){
@@ -1312,16 +1290,35 @@ function renderCalendar() {
             });
             chip.addEventListener('touchstart', function(e){
               e.preventDefault();
-              dragWasActive = false;
               onCellMouseDown(zapIdx, datum, chipEl, v);
             });
-            chip.addEventListener('mouseup', function(){
-              dragWasActive = dragState.cells && dragState.cells.length > 1;
+            chip.addEventListener('mouseup', function(e){
+              e.stopPropagation();
+              var wasDrag = dragState.cells && dragState.cells.length > 1;
+              dragState.active = false;
+              if (wasDrag) {
+                // Višestruki odabir - otvori modal
+                var sortedCells = dragState.cells.slice().sort();
+                document.getElementById('currentUser').value = zapIdx;
+                pendingCell = { zapIdx: zapIdx, datum: sortedCells[0] };
+                var od = sortedCells[0]; var doDt = sortedCells[sortedCells.length-1];
+                var dp = od.split('-');
+                document.getElementById('unosTitle').textContent = '📝 ' + (data.zaposlenici[zapIdx] ? data.zaposlenici[zapIdx].ime : '') + ' — ' + dp[2]+'/'+dp[1]+'/'+dp[0] + ' (+' + (sortedCells.length-1) + ')';
+                document.getElementById('unosDatumOd').value = dp[2]+'/'+dp[1]+'/'+dp[0];
+                document.getElementById('unosDatumDo').value = doDt;
+                document.getElementById('unosBrojDana').value = '';
+                dragState.cells = [];
+                dragState.zapIdx = null;
+                document.querySelectorAll('.drag-selecting').forEach(function(el){ el.classList.remove('drag-selecting'); });
+                openModal('unos');
+              } else {
+                // Jedan klik
+                dragState.cells = [];
+                dragState.zapIdx = null;
+                document.querySelectorAll('.drag-selecting').forEach(function(el){ el.classList.remove('drag-selecting'); });
+                onCellClick(zapIdx, datum, v);
+              }
             });
-            chip.onclick = function() {
-              if (window._dragJustFired || dragWasActive) { dragWasActive = false; return; }
-              onCellClick(zapIdx, datum, v);
-            };
           })(zi, ds2, vrsta, chip);
         }
       }
@@ -1956,16 +1953,13 @@ setTimeout(function() {
 function init() {
   loadData();
   loadTheme();
+  initDragSelect();
   renderYearTabs();
   renderUserSelect();
   renderMonthTabs();
   renderWeek();
   renderStats();
-  if (window.innerWidth <= 640) {
-    showTab('calendar');
-  } else {
-    showTab('week');
-  }
+  initTabs();
 }
 
 // ════════════════════════════════════════════════════════════════
