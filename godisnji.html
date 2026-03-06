@@ -750,7 +750,7 @@ function onCellMouseEnter(zapIdx, datum, chipEl, vrsta) {
 function pad(n) { return String(n).padStart(2, '0'); }
 function dateStr(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
 function todayStr() { var t = new Date(); return dateStr(t.getFullYear(), t.getMonth()+1, t.getDate()); }
-function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth();
@@ -1141,7 +1141,7 @@ function renderCalendar() {
   for (var d = 1; d <= days; d++) {
     var th = document.createElement('th');
     var dayOfWeek = new Date(currentYear, currentMonth, d).getDay();
-    var ds = dateStr(currentYear, currentMonth, d-1+1);
+    var ds = dateStr(currentYear, currentMonth+1, d);
     // fix: proper dateStr
     var ds2 = currentYear+'-'+pad(currentMonth+1)+'-'+pad(d);
     var praz1 = isPraznik(ds2);
