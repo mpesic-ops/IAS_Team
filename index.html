@@ -530,6 +530,57 @@ body { min-height:100vh;background:#f0f2f5; }
 </div>
 
 <script>
+
+// ══════════════════════════════════════════════════════
+// CORE FUNKCIJE
+// ══════════════════════════════════════════════════════
+function openModal(id) {
+  if (id === 'postavke') {
+    if (window._fbAdmin) {
+      document.getElementById('hub-admin-sekcija').style.display = 'block';
+      initHubPraznici();
+    }
+    renderUserList();
+    loadTimClanovi();
+  }
+  var el = document.getElementById('modal-' + id);
+  if (el) el.classList.add('open');
+}
+
+function closeModal(id) {
+  var el = document.getElementById('modal-' + id);
+  if (el) el.classList.remove('open');
+}
+
+function applyTheme(t) {
+  localStorage.setItem('ias-tema', t);
+  ['default','dark','pink'].forEach(function(n) {
+    var el = document.getElementById('tema-check-' + n);
+    if (el) el.textContent = n === t ? '✓' : '';
+  });
+}
+
+function loadTheme() {
+  applyTheme(localStorage.getItem('ias-tema') || 'default');
+}
+
+function changePassword() {
+  var u = window._fbUser;
+  if (!u) return;
+  if (confirm('Poslati reset email na ' + u.email + '?')) {
+    window._fbResetPassword(u.email)
+      .then(function() { alert('✓ Reset email poslan na ' + u.email); })
+      .catch(function(e) { alert('Greška: ' + e.message); });
+  }
+}
+
+// Zatvori modal klikom izvan
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
 // ══════════════════════════════════════════════════════
 // POSTAVKE TAB SWITCH
 // ══════════════════════════════════════════════════════
