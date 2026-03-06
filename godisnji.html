@@ -423,18 +423,19 @@ window.addEventListener("load", function() {
     });
 
   // ── Auth state ────────────────────────────────────────────────
-  _auth.onAuthStateChanged(async function(user) {
+  _auth.onAuthStateChanged(function(user) {
     if (user) {
-      const { allowed, admin } = await checkAccess(user.email);
-      if (allowed) {
-        window._fbReady = true;
-        window._fbAdmin = admin;
-        window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
-        window.dispatchEvent(new Event('firebase-ready'));
-      } else {
-        _auth.signOut();
-        window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
-      }
+      checkAccess(user.email).then(function(result) {
+        if (result.allowed) {
+          window._fbReady = true;
+          window._fbAdmin = result.admin;
+          window._fbUser  = { name: user.displayName, email: user.email, photo: user.photoURL };
+          window.dispatchEvent(new Event('firebase-ready'));
+        } else {
+          _auth.signOut();
+          window.dispatchEvent(new CustomEvent('auth-denied', { detail: user.email }));
+        }
+      });
     } else {
       window.dispatchEvent(new Event('auth-needed'));
     }
@@ -958,6 +959,25 @@ function startUnosiListener(godina) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
     renderAll();
   });
+}
+
+
+function applyTheme(t) {
+  if (t === 'default') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', t);
+  }
+  localStorage.setItem('ias-theme', t);
+  ['default','dark','pink'].forEach(function(n) {
+    var el = document.getElementById('tema-check-' + n);
+    if (el) el.textContent = n === t ? '✓' : '';
+    var btn = document.getElementById('tema-btn-' + n);
+    if (btn) btn.style.outline = n === t ? '2px solid currentColor' : 'none';
+  });
+}
+function loadTheme() {
+  applyTheme(localStorage.getItem('ias-theme') || 'default');
 }
 
 function renderAll() {
