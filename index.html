@@ -9,13 +9,10 @@
 <link rel="manifest" href='data:application/json,{"name":"IAS Team","short_name":"IAS Team","start_url":".","display":"standalone","background_color":"#1a56a0","theme_color":"#1a56a0","icons":[{"src":"https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/72x72/1f4cb.png","sizes":"72x72","type":"image/png"}]}'>
 <title>IAS Team</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
   // ================================================================
   // ZAMIJENITE OVO S VAŠIM firebaseConfig PODACIMA:
-  const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDeOZkrrs1ri6cIMtSCvShyQxld-jzW8l4",
   authDomain: "ias-shared-desk.firebaseapp.com",
   databaseURL: "https://ias-shared-desk-default-rtdb.europe-west1.firebasedatabase.app",
@@ -23,7 +20,8 @@
   storageBucket: "ias-shared-desk.firebasestorage.app",
   messagingSenderId: "752309546769",
   appId: "1:752309546769:web:75a3b96e20e3a918d1e6b0"
-};===============================================================
+};
+  // ================================================================
 
   firebase.initializeApp(firebaseConfig);
   const _auth = firebase.auth();
@@ -270,6 +268,9 @@ body { min-height:100vh;background:#f0f2f5; }
   .hub-name { display:none; }
 }
 </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
