@@ -1353,7 +1353,7 @@ async function saveNames(type){
 }
 
 // ── TABLICA ──
-async function makeSelect(data,key,isPark){
+function makeSelect(data,key,isPark){
   const sel=document.createElement('select');
   sel.innerHTML='<option value="">—</option>';
   people.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
@@ -1710,37 +1710,5 @@ function init(){
 init();
 </script>
 
-<script>
-if ('serviceWorker' in navigator) {
-  // Inline service worker kao blob
-  const swCode = `
-    const CACHE = 'ias-shared-desk-v1';
-    const OFFLINE_URLS = [
-      'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js',
-      'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js',
-      'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'
-    ];
-    self.addEventListener('install', e => {
-      self.skipWaiting();
-      e.waitUntil(
-        caches.open(CACHE).then(c => c.addAll(OFFLINE_URLS).catch(()=>{}))
-      );
-    });
-    self.addEventListener('activate', e => {
-      e.waitUntil(clients.claim());
-    });
-    self.addEventListener('fetch', e => {
-      e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-      );
-    });
-  `;
-  const swBlob = new Blob([swCode], {type: 'application/javascript'});
-  const swUrl  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl).then(() => {
-    console.log('SW registered');
-  }).catch(e => console.log('SW error:', e));
-}
-</script>
 </body>
 </html>
