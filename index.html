@@ -848,15 +848,15 @@ function renderTimClanovi() {
     row.appendChild(nameInput); row.appendChild(delBtn);
     list.appendChild(row);
   });
-  // Spremi gumb
+  // Spremi gumb - iznad liste
   var saveRow = document.createElement('div');
-  saveRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:6px;';
+  saveRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
   var saveBtn = document.createElement('button');
   saveBtn.className = 'btn btn-primary';
   saveBtn.textContent = '💾 Spremi';
   saveBtn.onclick = saveTimClanovi;
   saveRow.appendChild(saveBtn);
-  list.appendChild(saveRow);
+  list.parentNode.insertBefore(saveRow, list);
 }
 
 async function addTimClan() {
