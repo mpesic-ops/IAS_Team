@@ -1551,29 +1551,52 @@ function renderFun() {
         else { groups.push(current); current = [goDates[gi]]; }
       }
       groups.push(current);
-      // Svaka grupa koja je spojena s vikendom/praznikom = 1 bridge
-      // Iteriramo naprijed/nazad kroz susjedne dane dok god su free days
+      // Bridge logika:
+      // - Praznik unutar GO bloka + vikend s bar jedne strane
+      // - Praznik direktno uz GO s jedne strane + slobodan dan s druge (bez vikenda između)
+      function getPraznikAdjacent(g, direction) {
+        var dates = g.slice().sort();
+        var startDs = direction < 0 ? dates[0] : dates[dates.length-1];
+        var d = new Date(startDs);
+        d.setDate(d.getDate() + direction);
+        var ds = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+        if (isPraznik(ds)) return true;
+        return false;
+      }
+      function getVikendAdjacent(g, direction) {
+        var dates = g.slice().sort();
+        var startDs = direction < 0 ? dates[0] : dates[dates.length-1];
+        var d = new Date(startDs);
+        for (var i = 0; i < 10; i++) {
+          d.setDate(d.getDate() + direction);
+          var ds = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+          if (d.getDay()===0||d.getDay()===6) return true;
+          if (isPraznik(ds)) continue; // preskoči praznike uz GO
+          return false;
+        }
+        return false;
+      }
+      function getAllDatesInGroup(g) {
+        var first = new Date(g[0]), last = new Date(g[g.length-1]);
+        var result = [];
+        var d = new Date(first);
+        while (d <= last) {
+          result.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));
+          d.setDate(d.getDate()+1);
+        }
+        return result;
+      }
       groups.forEach(function(g) {
-        var first = g[0], last = g[g.length-1];
-        // Provjeri niz dana PRIJE prvog GO dana dok su free
-        var beforeFree = false;
-        var dCheck = new Date(first);
-        for (var bc = 0; bc < 7; bc++) {
-          dCheck.setDate(dCheck.getDate()-1);
-          var dsCheck = dCheck.getFullYear()+'-'+pad(dCheck.getMonth()+1)+'-'+pad(dCheck.getDate());
-          if (isFreeDay(dsCheck)) { beforeFree = true; }
-          else { break; }
-        }
-        // Provjeri niz dana NAKON zadnjeg GO dana dok su free
-        var afterFree = false;
-        dCheck = new Date(last);
-        for (var ac = 0; ac < 7; ac++) {
-          dCheck.setDate(dCheck.getDate()+1);
-          var dsCheck2 = dCheck.getFullYear()+'-'+pad(dCheck.getMonth()+1)+'-'+pad(dCheck.getDate());
-          if (isFreeDay(dsCheck2)) { afterFree = true; }
-          else { break; }
-        }
-        if (beforeFree || afterFree) bridge++;
+        var allDates    = getAllDatesInGroup(g);
+        var prazUnutra  = allDates.some(function(ds){ return !!isPraznik(ds); });
+        var prazBefore  = getPraznikAdjacent(g, -1);
+        var prazAfter   = getPraznikAdjacent(g, +1);
+        var vikBefore   = getVikendAdjacent(g, -1);
+        var vikAfter    = getVikendAdjacent(g, +1);
+        var isBridge    = (prazUnutra && (vikBefore || vikAfter))
+                       || (prazBefore && (vikAfter  || prazAfter))
+                       || (prazAfter  && (vikBefore || prazBefore));
+        if (isBridge) bridge++;
       });
     }
     return {ime:z.ime, goDana:z.goDana||30, go:go, sd:sd, sde:sde, dk:dk, bo:bo, bridge:bridge};
