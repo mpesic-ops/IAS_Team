@@ -57,11 +57,11 @@
   --postavke-border:#e5e7eb;--postavke-hover-border:#1a56a0;--postavke-hover-bg:#f0f7ff;--postavke-title:#1f2937;--postavke-desc:#6b7280;
   --sync-synced-bg:#d1fae5;--sync-synced-color:#065f46;--sync-synced-border:#6ee7b7;
   /* Vrste slobodnih dana */
-  --go-bg:#dbeafe;--go-border:#3b82f6;--go-text:#1e40af;
-  --sd-bg:#fef9c3;--sd-border:#eab308;--sd-text:#854d0e;
-  --sde-bg:#e0e7ff;--sde-border:#6366f1;--sde-text:#3730a3;
-  --dk-bg:#fce7f3;--dk-border:#ec4899;--dk-text:#9d174d;
-  --bo-bg:#fee2e2;--bo-border:#ef4444;--bo-text:#991b1b;
+  --go-bg:#dbeafe;--go-border:#3b82f6;--go-text:#1d4ed8;
+  --sd-bg:#ffedd5;--sd-border:#f97316;--sd-text:#9a3412;
+  --sde-bg:#ede9fe;--sde-border:#8b5cf6;--sde-text:#5b21b6;
+  --dk-bg:#fee2e2;--dk-border:#ef4444;--dk-text:#991b1b;
+  --bo-bg:#ccfbf1;--bo-border:#14b8a6;--bo-text:#0f766e;
 }
 [data-theme="dark"] {
   --bg:#111827;--bg2:#1f2937;--bg3:#111827;
@@ -76,11 +76,21 @@
   --postavke-border:#374151;--postavke-hover-border:#3b82f6;--postavke-hover-bg:#1e3a5f;--postavke-title:#f9fafb;--postavke-desc:#9ca3af;
   --sync-synced-bg:#064e3b;--sync-synced-color:#6ee7b7;--sync-synced-border:#065f46;
   --go-bg:#1e3a5f;--go-border:#3b82f6;--go-text:#93c5fd;
-  --sd-bg:#422006;--sd-border:#eab308;--sd-text:#fde68a;
-  --sde-bg:#1e1b4b;--sde-border:#6366f1;--sde-text:#a5b4fc;
-  --dk-bg:#500724;--dk-border:#ec4899;--dk-text:#fbcfe8;
-  --bo-bg:#450a0a;--bo-border:#ef4444;--bo-text:#fca5a5;
+  --sd-bg:#431407;--sd-border:#f97316;--sd-text:#fed7aa;
+  --sde-bg:#2e1065;--sde-border:#8b5cf6;--sde-text:#ddd6fe;
+  --dk-bg:#450a0a;--dk-border:#ef4444;--dk-text:#fca5a5;
+  --bo-bg:#042f2e;--bo-border:#14b8a6;--bo-text:#99f6e4;
 }
+
+[data-theme="ias"] {
+  /* Vrste slobodnih dana — IAS tema */
+  --go-bg:#dbeafe;--go-border:#3b82f6;--go-text:#1d4ed8;
+  --sd-bg:#ffedd5;--sd-border:#f97316;--sd-text:#9a3412;
+  --sde-bg:#ede9fe;--sde-border:#8b5cf6;--sde-text:#5b21b6;
+  --dk-bg:#fee2e2;--dk-border:#ef4444;--dk-text:#991b1b;
+  --bo-bg:#ccfbf1;--bo-border:#14b8a6;--bo-text:#0f766e;
+}
+
 [data-theme="pink"] {
   --bg:#FFF5F7;--bg2:#ffffff;--bg3:#FFF5F7;
   --topbar:#EE2F58;--topbar-btn-bg:rgba(255,255,255,0.15);--topbar-btn-border:rgba(255,255,255,0.35);--topbar-btn-color:white;
@@ -1542,13 +1552,28 @@ function renderFun() {
       }
       groups.push(current);
       // Svaka grupa koja je spojena s vikendom/praznikom = 1 bridge
+      // Iteriramo naprijed/nazad kroz susjedne dane dok god su free days
       groups.forEach(function(g) {
         var first = g[0], last = g[g.length-1];
-        var dFirst = new Date(first); dFirst.setDate(dFirst.getDate()-1);
-        var dLast  = new Date(last);  dLast.setDate(dLast.getDate()+1);
-        var dsF = dFirst.getFullYear()+'-'+pad(dFirst.getMonth()+1)+'-'+pad(dFirst.getDate());
-        var dsL = dLast.getFullYear()+'-'+pad(dLast.getMonth()+1)+'-'+pad(dLast.getDate());
-        if (isFreeDay(dsF) || isFreeDay(dsL)) bridge++;
+        // Provjeri niz dana PRIJE prvog GO dana dok su free
+        var beforeFree = false;
+        var dCheck = new Date(first);
+        for (var bc = 0; bc < 7; bc++) {
+          dCheck.setDate(dCheck.getDate()-1);
+          var dsCheck = dCheck.getFullYear()+'-'+pad(dCheck.getMonth()+1)+'-'+pad(dCheck.getDate());
+          if (isFreeDay(dsCheck)) { beforeFree = true; }
+          else { break; }
+        }
+        // Provjeri niz dana NAKON zadnjeg GO dana dok su free
+        var afterFree = false;
+        dCheck = new Date(last);
+        for (var ac = 0; ac < 7; ac++) {
+          dCheck.setDate(dCheck.getDate()+1);
+          var dsCheck2 = dCheck.getFullYear()+'-'+pad(dCheck.getMonth()+1)+'-'+pad(dCheck.getDate());
+          if (isFreeDay(dsCheck2)) { afterFree = true; }
+          else { break; }
+        }
+        if (beforeFree || afterFree) bridge++;
       });
     }
     return {ime:z.ime, goDana:z.goDana||30, go:go, sd:sd, sde:sde, dk:dk, bo:bo, bridge:bridge};
@@ -1754,7 +1779,7 @@ function renderStats() {
     var bar = document.createElement('span');
     bar.style.cssText = 'height:10px;border-radius:5px;background:var(--go-bg);border:1px solid var(--go-border);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-left:6px;';
     var fill = document.createElement('span');
-    fill.style.cssText = 'display:block;height:100%;border-radius:5px;background:#22c55e;width:' + pct + '%;';
+    fill.style.cssText = 'display:block;height:100%;border-radius:5px;background:' + (pct >= 80 ? '#ef4444' : pct >= 50 ? '#f97316' : '#22c55e') + ';width:' + pct + '%;';
     bar.appendChild(fill);
     tdUsed.appendChild(spanNum);
     tdUsed.appendChild(bar);
